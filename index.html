@@ -94,7 +94,12 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-400 mb-2">Password</label>
-            <input type="password" id="password" required class="w-full px-5 py-3 bg-[#0B0F19] border border-gray-700 text-white rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all placeholder-gray-600" placeholder="Enter password">
+            <div class="relative">
+              <input type="password" id="password" required class="w-full px-5 py-3 bg-[#0B0F19] border border-gray-700 text-white rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all placeholder-gray-600 pr-12" placeholder="Enter password">
+              <button type="button" id="toggle-password" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-cyan-400 transition-colors focus:outline-none flex items-center justify-center">
+                <i data-lucide="eye" id="eye-icon" class="w-5 h-5"></i>
+              </button>
+            </div>
           </div>
           <button type="submit" class="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3.5 rounded-xl transition-all mt-6 shadow-lg shadow-cyan-900/40 transform hover:-translate-y-0.5">
             Secure Sign In
@@ -866,6 +871,19 @@
     }
 
     // --- Event Listeners ---
+    document.getElementById('toggle-password').addEventListener('click', () => {
+      const pwdInput = document.getElementById('password');
+      const eyeIcon = document.getElementById('eye-icon');
+      if (pwdInput.type === 'password') {
+        pwdInput.type = 'text';
+        eyeIcon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        pwdInput.type = 'password';
+        eyeIcon.setAttribute('data-lucide', 'eye');
+      }
+      lucide.createIcons();
+    });
+
     document.getElementById('login-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const u = document.getElementById('username').value;
@@ -876,12 +894,14 @@
         state.appUser = { role: 'master', username: 'Master' };
         localStorage.setItem(USER_KEY, JSON.stringify(state.appUser));
         err.classList.add('hidden');
+        updateUI(); // Proceed to dashboard instantly
         startLogoutTimer();
         initFirebaseData(); 
       } else if (u === 'AshishModi' && p === 'Ashish.Modi') {
-        state.appUser = { role: 'view', username: 'AshishModi' };
+        state.appUser = { role: 'view', username: 'Ashish Modi' };
         localStorage.setItem(USER_KEY, JSON.stringify(state.appUser));
         err.classList.add('hidden');
+        updateUI(); // Proceed to dashboard instantly
         startLogoutTimer();
         initFirebaseData();
       } else {
