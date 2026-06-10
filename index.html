@@ -379,10 +379,12 @@
 
     // --- State Management ---
     const USER_KEY = 'shubham_algo_user_session';
+    const TAB_KEY = 'shubham_algo_active_tab';
+    
     const state = {
       firebaseUser: null,
       appUser: JSON.parse(localStorage.getItem(USER_KEY)) || null, // Persist login through refresh
-      activeTab: 'dashboard',
+      activeTab: sessionStorage.getItem(TAB_KEY) || 'dashboard',   // Persist active tab through refresh
       config: { startingBalance: 100000, withdrawals: 0 },
       pnlEntries: [],
       calendarYear: new Date().getFullYear(),
@@ -403,20 +405,31 @@
     };
 
     // --- Auto Logout Timer System ---
+    const TIMER_KEY = 'shubham_algo_timer_target';
     let logoutTimerInterval;
-    let timeLeft = 120; // 2 minutes
+    let lastReset = 0;
 
     function resetTimer() {
-      timeLeft = 120;
-      updateTimerUI(timeLeft);
+      const now = Date.now();
+      // Throttle local storage writes to max 1 per second
+      if (now - lastReset > 1000) {
+        const target = now + 120 * 1000;
+        localStorage.setItem(TIMER_KEY, target.toString());
+        
+        const targetSaved = parseInt(localStorage.getItem(TIMER_KEY) || '0', 10);
+        const timeLeft = Math.round((targetSaved - Date.now()) / 1000);
+        updateTimerUI(timeLeft);
+        
+        lastReset = now;
+      }
     }
 
     function updateTimerUI(seconds) {
       const timerEl = document.getElementById('nav-timer');
       const containerEl = document.getElementById('nav-timer-container');
       
-      const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-      const s = (seconds % 60).toString().padStart(2, '0');
+      const m = Math.floor(Math.max(0, seconds) / 60).toString().padStart(2, '0');
+      const s = Math.max(0, seconds % 60).toString().padStart(2, '0');
       if (timerEl) timerEl.innerText = `${m}:${s}`;
       
       if (seconds <= 30) {
@@ -427,7 +440,12 @@
     }
 
     function startLogoutTimer() {
-      resetTimer();
+      // If no timer exists, or existing timer is expired, start a fresh one
+      if (!localStorage.getItem(TIMER_KEY) || parseInt(localStorage.getItem(TIMER_KEY), 10) < Date.now()) {
+         lastReset = 0; // Force update
+         resetTimer(); 
+      }
+      
       window.addEventListener('mousemove', resetTimer);
       window.addEventListener('keypress', resetTimer);
       window.addEventListener('click', resetTimer);
@@ -435,10 +453,14 @@
       clearInterval(logoutTimerInterval);
       logoutTimerInterval = setInterval(() => {
         if (!state.appUser) return;
-        timeLeft--;
-        updateTimerUI(timeLeft);
+        
+        const target = parseInt(localStorage.getItem(TIMER_KEY) || '0', 10);
+        const timeLeft = Math.round((target - Date.now()) / 1000);
+        
         if (timeLeft <= 0) {
           handleLogout();
+        } else {
+          updateTimerUI(timeLeft);
         }
       }, 1000);
     }
@@ -453,6 +475,7 @@
     function handleLogout() {
       state.appUser = null;
       localStorage.removeItem(USER_KEY);
+      localStorage.removeItem(TIMER_KEY);
       state.unsubs.forEach(u => u());
       state.unsubs = [];
       stopLogoutTimer();
@@ -623,7 +646,7 @@
       let cumPnL = 0;
       const dataPoints = validEntries.map(e => {
         cumPnL += Number(e.pnl);
-        return { date: e.date, value: cumPnL };
+        return { date: e.date, value: cumPnL, dayPnL: e.pnl };
       });
 
       const width = 800;
@@ -651,38 +674,112 @@
       
       const currentValFormatted = formatCurrency(dataPoints[dataPoints.length - 1].value);
 
-      container.innerHTML = `
-        <div class="relative w-full overflow-x-auto pb-4 custom-scrollbar">
-          <div class="min-w-[600px] relative">
-            <svg viewBox="0 0 ${width} ${height}" class="w-full h-auto drop-shadow-2xl">
-              <defs>
-                <linearGradient id="gradientArea" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="${stop1}" />
-                  <stop offset="100%" stop-color="${stop2}" />
-                </linearGradient>
-                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="4" result="blur" />
-                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-              </defs>
-              
-              ${minVal < 0 ? `<line x1="${padding}" y1="${scaleY(0)}" x2="${width - padding}" y2="${scaleY(0)}" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 6" />` : ''}
-              
-              <path d="${areaD}" fill="url(#gradientArea)" class="animate-fade-up delay-200" />
-              <path d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="4" filter="url(#glow)" stroke-linecap="round" stroke-linejoin="round" class="chart-path" />
-              
-              <circle cx="${scaleX(dataPoints.length - 1)}" cy="${scaleY(dataPoints[dataPoints.length - 1].value)}" r="6" fill="#0B0F19" stroke="${strokeColor}" stroke-width="3" class="animate-fade-up delay-300" />
-            </svg>
-            
-            <div class="absolute top-2 right-4 text-right pointer-events-none animate-fade-up delay-300 bg-[#0B0F19]/80 backdrop-blur-sm p-3 rounded-xl border border-gray-800 shadow-xl">
-              <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Current Cumulative</p>
-              <p class="text-2xl font-black ${isPos ? 'text-cyan-400' : 'text-rose-400'}">
-                ${currentValFormatted}
-              </p>
-            </div>
-          </div>
+      // Generate interaction hover bands and dots
+      let interactionHTML = '';
+      const bandWidth = (width - padding * 2) / Math.max(1, dataPoints.length - 1);
+      
+      dataPoints.forEach((d, i) => {
+         const cx = scaleX(i);
+         const cy = scaleY(d.value);
+         const displayVal = formatCurrency(d.value);
+         const pnlDay = formatCurrency(d.dayPnL);
+         
+         interactionHTML += `
+           <rect 
+              x="${cx - bandWidth/2}" y="0" width="${bandWidth}" height="${height}" 
+              fill="transparent" class="cursor-crosshair chart-hover-band"
+              data-date="${d.date}" data-val="${displayVal}" data-pnl="${pnlDay}" data-cx="${cx}" data-cy="${cy}" 
+           />
+           <circle cx="${cx}" cy="${cy}" r="5" fill="#0B0F19" stroke="${strokeColor}" stroke-width="2" class="opacity-0 transition-opacity duration-150 pointer-events-none band-dot-${i}" />
+         `;
+      });
+
+      const innerContainer = document.createElement('div');
+      innerContainer.className = 'relative w-full overflow-x-auto pb-4 custom-scrollbar';
+
+      const tooltipHTML = `
+        <div id="chart-tooltip" class="absolute hidden bg-[#0B0F19]/95 border border-gray-700 text-white px-4 py-3 rounded-2xl shadow-2xl z-50 pointer-events-none transform -translate-x-1/2 -translate-y-[110%] backdrop-blur-xl whitespace-nowrap transition-transform duration-100 ease-out">
+           <!-- Dynamic content injected here -->
         </div>
       `;
+
+      innerContainer.innerHTML = `
+        <div class="min-w-[600px] relative" id="svg-wrapper">
+          <svg viewBox="0 0 ${width} ${height}" class="w-full h-auto drop-shadow-2xl overflow-visible">
+            <defs>
+              <linearGradient id="gradientArea" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="${stop1}" />
+                <stop offset="100%" stop-color="${stop2}" />
+              </linearGradient>
+              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+            
+            ${minVal < 0 ? `<line x1="${padding}" y1="${scaleY(0)}" x2="${width - padding}" y2="${scaleY(0)}" stroke="#334155" stroke-width="1.5" stroke-dasharray="6 6" />` : ''}
+            
+            <path d="${areaD}" fill="url(#gradientArea)" class="animate-fade-up delay-200 pointer-events-none" />
+            <path d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="4" filter="url(#glow)" stroke-linecap="round" stroke-linejoin="round" class="chart-path pointer-events-none" />
+            
+            ${interactionHTML}
+            
+            <circle cx="${scaleX(dataPoints.length - 1)}" cy="${scaleY(dataPoints[dataPoints.length - 1].value)}" r="6" fill="#0B0F19" stroke="${strokeColor}" stroke-width="3" class="animate-fade-up delay-300 pointer-events-none" />
+          </svg>
+          
+          <div class="absolute top-2 right-4 text-right pointer-events-none animate-fade-up delay-300 bg-[#0B0F19]/80 backdrop-blur-sm p-3 rounded-xl border border-gray-800 shadow-xl">
+            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Current Cumulative</p>
+            <p class="text-2xl font-black ${isPos ? 'text-cyan-400' : 'text-rose-400'}">
+              ${currentValFormatted}
+            </p>
+          </div>
+
+          ${tooltipHTML}
+        </div>
+      `;
+
+      container.innerHTML = '';
+      container.appendChild(innerContainer);
+
+      // Attach Interactions
+      const tooltip = innerContainer.querySelector('#chart-tooltip');
+      innerContainer.querySelectorAll('.chart-hover-band').forEach((band, index) => {
+        band.addEventListener('mouseenter', (e) => {
+           const cx = parseFloat(e.target.getAttribute('data-cx'));
+           const cy = parseFloat(e.target.getAttribute('data-cy'));
+           const date = e.target.getAttribute('data-date');
+           const val = e.target.getAttribute('data-val');
+           const pnl = e.target.getAttribute('data-pnl');
+           
+           const dateObj = new Date(date);
+           const displayDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+           tooltip.innerHTML = `
+             <div class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">${displayDate}</div>
+             <div class="flex items-end gap-5 justify-between border-b border-gray-800 pb-2 mb-2">
+               <span class="text-xs text-gray-500 font-semibold">Total</span>
+               <span class="text-xl font-black ${val.includes('-') ? 'text-rose-400' : 'text-cyan-400'}">${val}</span>
+             </div>
+             <div class="flex justify-between items-center gap-4 mt-2">
+               <span class="text-[10px] text-gray-500 font-bold uppercase">Day PnL</span>
+               <span class="text-sm font-bold ${pnl.includes('-') ? 'text-rose-400' : 'text-emerald-400'}">${pnl}</span>
+             </div>
+           `;
+           
+           tooltip.style.left = cx + 'px';
+           tooltip.style.top = cy + 'px';
+           tooltip.classList.remove('hidden');
+           
+           const dot = innerContainer.querySelector(`.band-dot-${index}`);
+           if (dot) dot.classList.replace('opacity-0', 'opacity-100');
+        });
+        
+        band.addEventListener('mouseleave', () => {
+           tooltip.classList.add('hidden');
+           const dot = innerContainer.querySelector(`.band-dot-${index}`);
+           if (dot) dot.classList.replace('opacity-100', 'opacity-0');
+        });
+      });
     }
 
     function renderCalendar() {
@@ -771,7 +868,6 @@
 
       if (!state.firebaseUser || !state.appUser) return;
 
-      // Simplified root paths directly in your database
       const configRef = collection(db, 'algo_config');
       const unsubConfig = onSnapshot(configRef, (snapshot) => {
         const configData = snapshot.docs.find(d => d.id === 'main');
@@ -894,14 +990,18 @@
         state.appUser = { role: 'master', username: 'Master' };
         localStorage.setItem(USER_KEY, JSON.stringify(state.appUser));
         err.classList.add('hidden');
-        updateUI(); // Proceed to dashboard instantly
+        
+        lastReset = 0; // Force timer reset on new login
+        updateUI(); 
         startLogoutTimer();
         initFirebaseData(); 
       } else if (u === 'AshishModi' && p === 'Ashish.Modi') {
         state.appUser = { role: 'view', username: 'Ashish Modi' };
         localStorage.setItem(USER_KEY, JSON.stringify(state.appUser));
         err.classList.add('hidden');
-        updateUI(); // Proceed to dashboard instantly
+        
+        lastReset = 0; // Force timer reset on new login
+        updateUI(); 
         startLogoutTimer();
         initFirebaseData();
       } else {
@@ -912,8 +1012,17 @@
 
     document.getElementById('btn-logout').addEventListener('click', handleLogout);
 
-    document.getElementById('tab-dashboard').addEventListener('click', () => { state.activeTab = 'dashboard'; updateUI(); });
-    document.getElementById('tab-calendar').addEventListener('click', () => { state.activeTab = 'calendar'; updateUI(); });
+    document.getElementById('tab-dashboard').addEventListener('click', () => { 
+       state.activeTab = 'dashboard'; 
+       sessionStorage.setItem(TAB_KEY, 'dashboard');
+       updateUI(); 
+    });
+    
+    document.getElementById('tab-calendar').addEventListener('click', () => { 
+       state.activeTab = 'calendar'; 
+       sessionStorage.setItem(TAB_KEY, 'calendar');
+       updateUI(); 
+    });
 
     document.getElementById('cal-prev').addEventListener('click', () => { state.calendarYear--; renderCalendar(); });
     document.getElementById('cal-next').addEventListener('click', () => { state.calendarYear++; renderCalendar(); });
