@@ -354,11 +354,12 @@
   <!-- Firebase & App Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- Configuration & Initialization ---
-    const providedConfig = {
+    // Strictly using your provided configuration
+    const firebaseConfig = {
       apiKey: "AIzaSyC0BCGWxjU5ZSZkWbwuMUhikx1VPTn9IcQ",
       authDomain: "algo-managment.firebaseapp.com",
       projectId: "algo-managment",
@@ -367,17 +368,15 @@
       appId: "1:1043127717216:web:b018653bee0cccc10da205"
     };
 
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : providedConfig;
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'shubhams-algo';
-
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
     // --- State Management ---
+    const USER_KEY = 'shubham_algo_user_session';
     const state = {
       firebaseUser: null,
-      appUser: null, // { role: 'master' | 'view', username: string }
+      appUser: JSON.parse(localStorage.getItem(USER_KEY)) || null, // Persist login through refresh
       activeTab: 'dashboard',
       config: { startingBalance: 100000, withdrawals: 0 },
       pnlEntries: [],
@@ -415,7 +414,6 @@
       const s = (seconds % 60).toString().padStart(2, '0');
       if (timerEl) timerEl.innerText = `${m}:${s}`;
       
-      // Visual urgency below 30s
       if (seconds <= 30) {
         containerEl.classList.add('bg-rose-500/30', 'animate-pulse');
       } else {
@@ -425,7 +423,6 @@
 
     function startLogoutTimer() {
       resetTimer();
-      // Reset timer on any user activity to keep the session alive
       window.addEventListener('mousemove', resetTimer);
       window.addEventListener('keypress', resetTimer);
       window.addEventListener('click', resetTimer);
@@ -450,13 +447,13 @@
 
     function handleLogout() {
       state.appUser = null;
+      localStorage.removeItem(USER_KEY);
       state.unsubs.forEach(u => u());
       state.unsubs = [];
       stopLogoutTimer();
       updateUI();
     }
 
-    // Initialize Icons
     lucide.createIcons();
 
     // --- UI Update Controllers ---
@@ -469,21 +466,18 @@
         return;
       }
 
-      // Hide login, show main app instantly
       document.getElementById('loading-screen').classList.add('hidden');
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('main-app').classList.remove('hidden');
       document.getElementById('nav-timer-container').classList.remove('hidden');
       document.getElementById('main-app').style.display = 'flex';
 
-      // Update Nav
       document.getElementById('nav-username').innerText = state.appUser.username;
       
       const btnSettings = document.getElementById('btn-settings');
       if (state.appUser.role === 'master') btnSettings.classList.remove('hidden');
       else btnSettings.classList.add('hidden');
 
-      // Tabs
       const tabDash = document.getElementById('tab-dashboard');
       const tabCal = document.getElementById('tab-calendar');
       const viewDash = document.getElementById('view-dashboard');
@@ -570,7 +564,6 @@
       document.getElementById('stat-avg-day').innerText = formatCurrency(stats.avgPerDay);
       document.getElementById('stat-avg-month').innerText = formatCurrency(stats.avgPerMonth);
 
-      // Returns Grid
       const returnsHtml = [
         { label: '1 Month', data: stats.ret1M },
         { label: '3 Months', data: stats.ret3M },
@@ -601,8 +594,6 @@
       }).join('');
       
       document.getElementById('returns-grid').innerHTML = returnsHtml;
-      
-      // Chart
       renderChart();
       lucide.createIcons(); 
     }
@@ -775,7 +766,8 @@
 
       if (!state.firebaseUser || !state.appUser) return;
 
-      const configRef = collection(db, 'artifacts', appId, 'public', 'data', 'algo_config');
+      // Simplified root paths directly in your database
+      const configRef = collection(db, 'algo_config');
       const unsubConfig = onSnapshot(configRef, (snapshot) => {
         const configData = snapshot.docs.find(d => d.id === 'main');
         if (configData) {
@@ -784,31 +776,36 @@
           state.config = { startingBalance: 100000, withdrawals: 0 };
         }
         updateUI();
-      }, err => console.error(err));
+      }, err => {
+         console.error("Config fetch error:", err);
+         alert("Could not fetch Config. Please ensure Firestore Security Rules allow reads.");
+      });
 
-      const entriesRef = collection(db, 'artifacts', appId, 'public', 'data', 'pnl_entries');
+      const entriesRef = collection(db, 'pnl_entries');
       const unsubEntries = onSnapshot(entriesRef, (snapshot) => {
         state.pnlEntries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         updateUI();
-      }, err => console.error(err));
+      }, err => {
+         console.error("Entries fetch error:", err);
+         alert("Could not fetch Entries. Please ensure Firestore Security Rules allow reads.");
+      });
 
       state.unsubs.push(unsubConfig, unsubEntries);
     }
 
     async function initializeAuth() {
       try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
+        await signInAnonymously(auth);
       } catch (error) {
         console.error("Auth initialization error:", error);
       }
 
       onAuthStateChanged(auth, (user) => {
         state.firebaseUser = user;
-        if(user && state.appUser) initFirebaseData();
+        if(user && state.appUser) {
+          startLogoutTimer();
+          initFirebaseData();
+        }
         updateUI();
       });
     }
@@ -877,18 +874,14 @@
       
       if (u === 'ShubhamMaster' && p === 'Shubham@Algo') {
         state.appUser = { role: 'master', username: 'Master' };
+        localStorage.setItem(USER_KEY, JSON.stringify(state.appUser));
         err.classList.add('hidden');
-        
-        // Instant Login Actions
-        updateUI(); 
         startLogoutTimer();
         initFirebaseData(); 
       } else if (u === 'AshishModi' && p === 'Ashish.Modi') {
         state.appUser = { role: 'view', username: 'AshishModi' };
+        localStorage.setItem(USER_KEY, JSON.stringify(state.appUser));
         err.classList.add('hidden');
-        
-        // Instant Login Actions
-        updateUI();
         startLogoutTimer();
         initFirebaseData();
       } else {
@@ -915,15 +908,15 @@
       const startBal = Number(document.getElementById('input-start-bal').value);
       const withdrawals = Number(document.getElementById('input-withdrawals').value);
 
-      // 1. Optimistic Update (Instant Visual)
       state.config = { startingBalance: startBal, withdrawals: withdrawals };
       updateUI();
       hideModal('modal-settings');
 
-      // 2. Fire and Forget Async Background Save
-      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'algo_config', 'main');
+      // Uses root path directly
+      const docRef = doc(db, 'algo_config', 'main');
       setDoc(docRef, { startingBalance: startBal, withdrawals: withdrawals }, { merge: true }).catch(err => {
-        console.error("Background sync failed:", err);
+        console.error("Save failed:", err);
+        alert("Failed to save to cloud. Check Firestore security rules.");
       });
     });
 
@@ -948,7 +941,6 @@
       const pnlVal = document.getElementById('input-pnl').value;
       const pnlNum = isHoliday ? 0 : Number(pnlVal);
 
-      // 1. Optimistic Update (Instant Visual)
       const existingIdx = state.pnlEntries.findIndex(x => x.id === state.selectedDateStr);
       if (pnlVal === '' && !isHoliday) {
         if (existingIdx >= 0) state.pnlEntries.splice(existingIdx, 1);
@@ -961,12 +953,18 @@
       updateUI();
       hideModal('modal-day');
 
-      // 2. Fire and Forget Async Background Save
-      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'pnl_entries', state.selectedDateStr);
+      // Uses root path directly
+      const docRef = doc(db, 'pnl_entries', state.selectedDateStr);
       if (pnlVal === '' && !isHoliday) {
-        deleteDoc(docRef).catch(console.error);
+        deleteDoc(docRef).catch(err => {
+          console.error(err);
+          alert("Failed to delete from cloud. Check Firestore security rules.");
+        });
       } else {
-        setDoc(docRef, { date: state.selectedDateStr, pnl: pnlNum, isHoliday }).catch(console.error);
+        setDoc(docRef, { date: state.selectedDateStr, pnl: pnlNum, isHoliday }).catch(err => {
+          console.error(err);
+          alert("Failed to save to cloud. Check Firestore security rules.");
+        });
       }
     });
 
@@ -974,16 +972,17 @@
       if(!state.firebaseUser || !state.selectedDateStr) return;
       if (!window.confirm("Remove data for this day?")) return;
       
-      // 1. Optimistic Update (Instant Visual)
       const existingIdx = state.pnlEntries.findIndex(x => x.id === state.selectedDateStr);
       if (existingIdx >= 0) state.pnlEntries.splice(existingIdx, 1);
       
       updateUI();
       hideModal('modal-day');
 
-      // 2. Fire and Forget Async Background Save
-      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'pnl_entries', state.selectedDateStr);
-      deleteDoc(docRef).catch(console.error);
+      const docRef = doc(db, 'pnl_entries', state.selectedDateStr);
+      deleteDoc(docRef).catch(err => {
+        console.error(err);
+        alert("Failed to delete from cloud. Check Firestore security rules.");
+      });
     });
 
     // Boot Environment
