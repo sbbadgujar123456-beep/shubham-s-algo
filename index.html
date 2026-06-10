@@ -114,9 +114,19 @@
           <div class="p-2.5 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl shadow-lg shadow-cyan-500/20">
             <i data-lucide="line-chart" class="w-6 h-6 text-white"></i>
           </div>
-          <div>
-            <h1 class="text-xl font-bold text-white tracking-tight leading-none">Shubham's Algo</h1>
-            <p class="text-xs text-cyan-400 mt-1 font-medium">Welcome <span id="nav-username"></span></p>
+          <div class="flex items-center">
+            <div>
+              <h1 class="text-xl font-bold text-white tracking-tight leading-none">Shubham's Algo</h1>
+              <p class="text-xs text-cyan-400 mt-1 font-medium flex items-center">
+                Welcome <span id="nav-username" class="ml-1"></span>
+              </p>
+            </div>
+            
+            <!-- Dynamic 2-Minute Timer -->
+            <div id="nav-timer-container" class="hidden ml-4 px-2 py-1 bg-rose-500/10 border border-rose-500/30 rounded-lg flex items-center gap-1.5 text-rose-400 transition-colors">
+              <i data-lucide="timer" class="w-3.5 h-3.5"></i>
+              <span id="nav-timer" class="text-xs font-bold font-mono tracking-widest">02:00</span>
+            </div>
           </div>
         </div>
         
@@ -388,6 +398,64 @@
       return `${year}-${month}-${day}`;
     };
 
+    // --- Auto Logout Timer System ---
+    let logoutTimerInterval;
+    let timeLeft = 120; // 2 minutes
+
+    function resetTimer() {
+      timeLeft = 120;
+      updateTimerUI(timeLeft);
+    }
+
+    function updateTimerUI(seconds) {
+      const timerEl = document.getElementById('nav-timer');
+      const containerEl = document.getElementById('nav-timer-container');
+      
+      const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+      const s = (seconds % 60).toString().padStart(2, '0');
+      if (timerEl) timerEl.innerText = `${m}:${s}`;
+      
+      // Visual urgency below 30s
+      if (seconds <= 30) {
+        containerEl.classList.add('bg-rose-500/30', 'animate-pulse');
+      } else {
+        containerEl.classList.remove('bg-rose-500/30', 'animate-pulse');
+      }
+    }
+
+    function startLogoutTimer() {
+      resetTimer();
+      // Reset timer on any user activity to keep the session alive
+      window.addEventListener('mousemove', resetTimer);
+      window.addEventListener('keypress', resetTimer);
+      window.addEventListener('click', resetTimer);
+      
+      clearInterval(logoutTimerInterval);
+      logoutTimerInterval = setInterval(() => {
+        if (!state.appUser) return;
+        timeLeft--;
+        updateTimerUI(timeLeft);
+        if (timeLeft <= 0) {
+          handleLogout();
+        }
+      }, 1000);
+    }
+
+    function stopLogoutTimer() {
+      clearInterval(logoutTimerInterval);
+      window.removeEventListener('mousemove', resetTimer);
+      window.removeEventListener('keypress', resetTimer);
+      window.removeEventListener('click', resetTimer);
+    }
+
+    function handleLogout() {
+      state.appUser = null;
+      state.unsubs.forEach(u => u());
+      state.unsubs = [];
+      stopLogoutTimer();
+      updateUI();
+    }
+
     // Initialize Icons
     lucide.createIcons();
 
@@ -396,14 +464,16 @@
       if (!state.appUser) {
         document.getElementById('loading-screen').classList.add('hidden');
         document.getElementById('main-app').classList.add('hidden');
+        document.getElementById('nav-timer-container').classList.add('hidden');
         document.getElementById('login-screen').classList.remove('hidden');
         return;
       }
 
-      // Hide login, show main app
+      // Hide login, show main app instantly
       document.getElementById('loading-screen').classList.add('hidden');
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('main-app').classList.remove('hidden');
+      document.getElementById('nav-timer-container').classList.remove('hidden');
       document.getElementById('main-app').style.display = 'flex';
 
       // Update Nav
@@ -534,7 +604,7 @@
       
       // Chart
       renderChart();
-      lucide.createIcons(); // Re-init icons for newly added HTML
+      lucide.createIcons(); 
     }
 
     function renderChart() {
@@ -631,12 +701,11 @@
         const firstDay = new Date(state.calendarYear, m, 1).getDay();
         
         let daysHtml = '';
-        // Empty cells
+        
         for (let i = 0; i < firstDay; i++) {
           daysHtml += `<div class="p-1"></div>`;
         }
         
-        // Days
         for (let i = 1; i <= daysInMonth; i++) {
           const date = new Date(state.calendarYear, m, i);
           const dateStr = getDateString(date);
@@ -688,7 +757,6 @@
 
       grid.innerHTML = html;
 
-      // Attach click listeners to days
       if (state.appUser?.role === 'master') {
         document.querySelectorAll('.day-cell').forEach(cell => {
           cell.addEventListener('click', (e) => {
@@ -702,7 +770,6 @@
 
     // --- Firebase Logic ---
     async function initFirebaseData() {
-      // Clear previous listeners
       state.unsubs.forEach(unsub => unsub());
       state.unsubs = [];
 
@@ -751,7 +818,6 @@
       const modal = document.getElementById(id);
       const content = document.getElementById(`${id}-content`);
       modal.classList.remove('hidden');
-      // trigger reflow
       void modal.offsetWidth;
       content.classList.remove('scale-95', 'opacity-0');
       content.classList.add('scale-100', 'opacity-100');
@@ -762,7 +828,7 @@
       const content = document.getElementById(`${id}-content`);
       content.classList.remove('scale-100', 'opacity-100');
       content.classList.add('scale-95', 'opacity-0');
-      setTimeout(() => modal.classList.add('hidden'), 300); // match transition duration
+      setTimeout(() => modal.classList.add('hidden'), 300); 
     }
 
     function openSettingsModal() {
@@ -812,10 +878,18 @@
       if (u === 'ShubhamMaster' && p === 'Shubham@Algo') {
         state.appUser = { role: 'master', username: 'Master' };
         err.classList.add('hidden');
-        initFirebaseData();
+        
+        // Instant Login Actions
+        updateUI(); 
+        startLogoutTimer();
+        initFirebaseData(); 
       } else if (u === 'AshishModi' && p === 'Ashish.Modi') {
         state.appUser = { role: 'view', username: 'Ashish Modi' };
         err.classList.add('hidden');
+        
+        // Instant Login Actions
+        updateUI();
+        startLogoutTimer();
         initFirebaseData();
       } else {
         document.getElementById('login-error-text').innerText = 'Invalid credentials. Please try again.';
@@ -823,12 +897,7 @@
       }
     });
 
-    document.getElementById('btn-logout').addEventListener('click', () => {
-      state.appUser = null;
-      state.unsubs.forEach(u => u());
-      state.unsubs = [];
-      updateUI();
-    });
+    document.getElementById('btn-logout').addEventListener('click', handleLogout);
 
     document.getElementById('tab-dashboard').addEventListener('click', () => { state.activeTab = 'dashboard'; updateUI(); });
     document.getElementById('tab-calendar').addEventListener('click', () => { state.activeTab = 'calendar'; updateUI(); });
@@ -836,31 +905,29 @@
     document.getElementById('cal-prev').addEventListener('click', () => { state.calendarYear--; renderCalendar(); });
     document.getElementById('cal-next').addEventListener('click', () => { state.calendarYear++; renderCalendar(); });
 
-    // Settings Modal Events
+    // Settings Modal Events (Optimistic Updates)
     document.getElementById('btn-settings').addEventListener('click', openSettingsModal);
     document.getElementById('btn-close-settings').addEventListener('click', () => hideModal('modal-settings'));
     document.getElementById('btn-cancel-settings').addEventListener('click', () => hideModal('modal-settings'));
-    document.getElementById('btn-save-settings').addEventListener('click', async (e) => {
+    
+    document.getElementById('btn-save-settings').addEventListener('click', () => {
       if(!state.firebaseUser) return;
-      const btn = e.target;
-      btn.innerText = 'Saving...';
-      btn.disabled = true;
-      try {
-        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'algo_config', 'main');
-        await setDoc(docRef, { 
-          startingBalance: Number(document.getElementById('input-start-bal').value), 
-          withdrawals: Number(document.getElementById('input-withdrawals').value) 
-        }, { merge: true });
-        hideModal('modal-settings');
-      } catch (error) {
-        console.error(error);
-        alert('Failed to save settings.');
-      }
-      btn.innerText = 'Save Settings';
-      btn.disabled = false;
+      const startBal = Number(document.getElementById('input-start-bal').value);
+      const withdrawals = Number(document.getElementById('input-withdrawals').value);
+
+      // 1. Optimistic Update (Instant Visual)
+      state.config = { startingBalance: startBal, withdrawals: withdrawals };
+      updateUI();
+      hideModal('modal-settings');
+
+      // 2. Fire and Forget Async Background Save
+      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'algo_config', 'main');
+      setDoc(docRef, { startingBalance: startBal, withdrawals: withdrawals }, { merge: true }).catch(err => {
+        console.error("Background sync failed:", err);
+      });
     });
 
-    // Day Modal Events
+    // Day Modal Events (Optimistic Updates)
     document.getElementById('btn-close-day').addEventListener('click', () => hideModal('modal-day'));
     document.getElementById('btn-cancel-day').addEventListener('click', () => hideModal('modal-day'));
     
@@ -874,55 +941,52 @@
       }
     });
 
-    document.getElementById('btn-save-day').addEventListener('click', async (e) => {
+    document.getElementById('btn-save-day').addEventListener('click', () => {
       if(!state.firebaseUser || !state.selectedDateStr) return;
-      const btn = e.target;
-      btn.innerText = 'Saving...';
-      btn.disabled = true;
-
+      
       const isHoliday = document.getElementById('input-holiday').checked;
       const pnlVal = document.getElementById('input-pnl').value;
+      const pnlNum = isHoliday ? 0 : Number(pnlVal);
 
-      try {
-        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'pnl_entries', state.selectedDateStr);
-        if (pnlVal === '' && !isHoliday) {
-          await deleteDoc(docRef);
-        } else {
-          await setDoc(docRef, { 
-            date: state.selectedDateStr,
-            pnl: isHoliday ? 0 : Number(pnlVal), 
-            isHoliday 
-          });
-        }
-        hideModal('modal-day');
-      } catch (error) {
-        console.error(error);
-        alert('Failed to save data.');
+      // 1. Optimistic Update (Instant Visual)
+      const existingIdx = state.pnlEntries.findIndex(x => x.id === state.selectedDateStr);
+      if (pnlVal === '' && !isHoliday) {
+        if (existingIdx >= 0) state.pnlEntries.splice(existingIdx, 1);
+      } else {
+        const newEntry = { id: state.selectedDateStr, date: state.selectedDateStr, pnl: pnlNum, isHoliday };
+        if (existingIdx >= 0) state.pnlEntries[existingIdx] = newEntry;
+        else state.pnlEntries.push(newEntry);
       }
-      btn.innerText = 'Save Data';
-      btn.disabled = false;
+      
+      updateUI();
+      hideModal('modal-day');
+
+      // 2. Fire and Forget Async Background Save
+      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'pnl_entries', state.selectedDateStr);
+      if (pnlVal === '' && !isHoliday) {
+        deleteDoc(docRef).catch(console.error);
+      } else {
+        setDoc(docRef, { date: state.selectedDateStr, pnl: pnlNum, isHoliday }).catch(console.error);
+      }
     });
 
-    document.getElementById('btn-delete-day').addEventListener('click', async (e) => {
+    document.getElementById('btn-delete-day').addEventListener('click', () => {
       if(!state.firebaseUser || !state.selectedDateStr) return;
       if (!window.confirm("Remove data for this day?")) return;
       
-      const btn = e.target;
-      btn.innerText = '...';
-      btn.disabled = true;
+      // 1. Optimistic Update (Instant Visual)
+      const existingIdx = state.pnlEntries.findIndex(x => x.id === state.selectedDateStr);
+      if (existingIdx >= 0) state.pnlEntries.splice(existingIdx, 1);
+      
+      updateUI();
+      hideModal('modal-day');
 
-      try {
-        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'pnl_entries', state.selectedDateStr);
-        await deleteDoc(docRef);
-        hideModal('modal-day');
-      } catch (error) {
-        console.error(error);
-      }
-      btn.innerText = 'Remove';
-      btn.disabled = false;
+      // 2. Fire and Forget Async Background Save
+      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'pnl_entries', state.selectedDateStr);
+      deleteDoc(docRef).catch(console.error);
     });
 
-    // Boot
+    // Boot Environment
     initializeAuth();
 
   </script>
