@@ -1,0 +1,903 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getAuth, 
+  signInAnonymously, 
+  signInWithCustomToken, 
+  onAuthStateChanged 
+} from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection, 
+  onSnapshot, 
+  doc, 
+  setDoc, 
+  deleteDoc 
+} from 'firebase/firestore';
+import { 
+  LineChart, 
+  Calendar as CalendarIcon, 
+  TrendingUp, 
+  TrendingDown, 
+  Wallet, 
+  DollarSign, 
+  LogOut, 
+  Settings, 
+  AlertCircle,
+  LayoutDashboard,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react';
+
+// --- Firebase Initialization ---
+const providedConfig = {
+  apiKey: "AIzaSyC0BCGWxjU5ZSZkWbwuMUhikx1VPTn9IcQ",
+  authDomain: "algo-managment.firebaseapp.com",
+  projectId: "algo-managment",
+  storageBucket: "algo-managment.firebasestorage.app",
+  messagingSenderId: "1043127717216",
+  appId: "1:1043127717216:web:b018653bee0cccc10da205"
+};
+
+const firebaseConfig = typeof __firebase_config !== 'undefined' 
+  ? JSON.parse(__firebase_config) 
+  : providedConfig;
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'shubhams-algo';
+
+// --- Utility Functions ---
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(amount || 0);
+};
+
+const formatPercent = (percent) => {
+  return `${(percent || 0).toFixed(2)}%`;
+};
+
+const getDateString = (date) => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// --- Main Application Component ---
+export default function App() {
+  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [appUser, setAppUser] = useState(null); 
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'calendar'
+
+  // Data States
+  const [config, setConfig] = useState({ startingBalance: 0, withdrawals: 0 });
+  const [pnlEntries, setPnlEntries] = useState([]);
+
+  // UI States
+  const [selectedDayModal, setSelectedDayModal] = useState(null);
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+
+  // Authentication Setup
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (error) {
+        console.error("Auth error:", error);
+      }
+    };
+    initAuth();
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setFirebaseUser(user);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Data Fetching
+  useEffect(() => {
+    if (!firebaseUser || !appUser) return;
+
+    const configRef = collection(db, 'artifacts', appId, 'public', 'data', 'algo_config');
+    const unsubConfig = onSnapshot(configRef, (snapshot) => {
+      const configData = snapshot.docs.find(d => d.id === 'main');
+      if (configData) {
+        setConfig(configData.data());
+      } else {
+        setConfig({ startingBalance: 100000, withdrawals: 0 });
+      }
+    }, (err) => console.error(err));
+
+    const entriesRef = collection(db, 'artifacts', appId, 'public', 'data', 'pnl_entries');
+    const unsubEntries = onSnapshot(entriesRef, (snapshot) => {
+      const entries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setPnlEntries(entries);
+    }, (err) => console.error(err));
+
+    return () => {
+      unsubConfig();
+      unsubEntries();
+    };
+  }, [firebaseUser, appUser]);
+
+  const handleLogin = (username, password) => {
+    if (username === 'ShubhamMaster' && password === 'Shubham@Algo') {
+      setAppUser({ role: 'master', username: 'Master' });
+    } else if (username === 'AshishModi' && password === 'Ashish.Modi') {
+      setAppUser({ role: 'view', username: 'Ashish Modi' });
+    } else {
+      return false; 
+    }
+    return true;
+  };
+
+  const handleLogout = () => {
+    setAppUser(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0B0F19] text-gray-300">
+        <div className="animate-pulse flex flex-col items-center gap-3">
+          <LineChart className="w-8 h-8 text-cyan-500 animate-bounce" />
+          <p>Initializing Environment...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!appUser) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0B0F19] text-gray-100 font-sans pb-10 selection:bg-cyan-500/30">
+      {/* Navbar */}
+      <nav className="bg-[#131B2C] border-b border-gray-800 px-4 py-3 sticky top-0 z-20 shadow-lg">
+        <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl shadow-lg shadow-cyan-500/20">
+              <LineChart className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white tracking-tight leading-none">Shubham's Algo</h1>
+              <p className="text-xs text-gray-400 mt-1">Welcome {appUser.username}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto pb-1 sm:pb-0">
+            <div className="flex bg-[#0B0F19] rounded-lg p-1 border border-gray-800">
+              <button 
+                onClick={() => setActiveTab('dashboard')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'dashboard' ? 'bg-[#1e293b] text-cyan-400 shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span className="hidden sm:inline">Overview</span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('calendar')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'calendar' ? 'bg-[#1e293b] text-cyan-400 shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
+              >
+                <CalendarIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">Yearly Calendar</span>
+              </button>
+            </div>
+
+            <div className="w-px h-6 bg-gray-800 hidden sm:block mx-1"></div>
+
+            {appUser.role === 'master' && (
+              <button 
+                onClick={() => setConfigModalOpen(true)}
+                className="p-2 text-gray-400 hover:text-cyan-400 transition-colors rounded-lg hover:bg-gray-800"
+                title="Settings"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+            )}
+            
+            <button 
+              onClick={handleLogout}
+              className="p-2 text-gray-400 hover:text-rose-500 transition-colors rounded-lg hover:bg-gray-800"
+              title="Logout"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <div className="max-w-7xl mx-auto px-4 mt-8">
+        {activeTab === 'dashboard' ? (
+          <Dashboard 
+            config={config} 
+            pnlEntries={pnlEntries} 
+            appUser={appUser} 
+          />
+        ) : (
+          <FullYearCalendar 
+            pnlEntries={pnlEntries}
+            appUser={appUser}
+            onDayClick={(dateStr) => setSelectedDayModal(dateStr)}
+          />
+        )}
+      </div>
+
+      {/* Modals */}
+      {configModalOpen && appUser.role === 'master' && (
+        <ConfigModal 
+          config={config} 
+          onClose={() => setConfigModalOpen(false)} 
+        />
+      )}
+
+      {selectedDayModal && appUser.role === 'master' && (
+        <DayModal 
+          dateStr={selectedDayModal} 
+          entry={pnlEntries.find(e => e.id === selectedDayModal) || { pnl: 0, isHoliday: false }}
+          onClose={() => setSelectedDayModal(null)} 
+        />
+      )}
+    </div>
+  );
+}
+
+// --- Dashboard Component ---
+function Dashboard({ config, pnlEntries, appUser }) {
+  const stats = useMemo(() => {
+    const startBal = Number(config.startingBalance) || 0;
+    const withdrawals = Number(config.withdrawals) || 0;
+    
+    let totalPnL = 0;
+    let daysTraded = 0;
+    const monthsTradedSet = new Set();
+    
+    const now = new Date();
+    let pnl1M = 0, pnl3M = 0, pnl6M = 0, pnl1Y = 0;
+
+    const t1M = new Date(); t1M.setDate(now.getDate() - 30);
+    const t3M = new Date(); t3M.setDate(now.getDate() - 90);
+    const t6M = new Date(); t6M.setDate(now.getDate() - 180);
+    const t1Y = new Date(); t1Y.setDate(now.getDate() - 365);
+
+    pnlEntries.forEach(entry => {
+      if (entry.isHoliday) return;
+      
+      const pnl = Number(entry.pnl) || 0;
+      totalPnL += pnl;
+      
+      if (entry.pnl !== undefined && entry.pnl !== null) {
+        daysTraded++;
+        const dateObj = new Date(entry.date);
+        monthsTradedSet.add(`${dateObj.getFullYear()}-${dateObj.getMonth()}`);
+        
+        if (dateObj >= t1M) pnl1M += pnl;
+        if (dateObj >= t3M) pnl3M += pnl;
+        if (dateObj >= t6M) pnl6M += pnl;
+        if (dateObj >= t1Y) pnl1Y += pnl;
+      }
+    });
+
+    const currentBal = startBal + totalPnL - withdrawals;
+    const monthsTraded = monthsTradedSet.size || 1; 
+
+    const calcReturn = (pnlAmt) => ({
+      amount: pnlAmt,
+      percent: startBal > 0 ? (pnlAmt / startBal) * 100 : 0
+    });
+
+    return {
+      currentBal,
+      totalReturn: calcReturn(totalPnL),
+      ret1M: calcReturn(pnl1M),
+      ret3M: calcReturn(pnl3M),
+      ret6M: calcReturn(pnl6M),
+      ret1Y: calcReturn(pnl1Y),
+      avgPerDay: daysTraded > 0 ? totalPnL / daysTraded : 0,
+      avgPerMonth: totalPnL / monthsTraded
+    };
+  }, [config, pnlEntries]);
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      
+      {/* Top Main Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {/* Starting Balance */}
+        <div className="bg-[#131B2C] rounded-2xl p-6 border border-gray-800 flex flex-col justify-between relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-2xl -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
+          <div className="flex justify-between items-start relative z-10">
+            <p className="text-gray-400 font-medium text-sm">Starting Balance</p>
+            <div className="p-2 bg-gray-800/50 rounded-lg text-cyan-400 border border-gray-700/50">
+              <Wallet className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-6 relative z-10">
+            <h2 className="text-3xl font-bold text-white tracking-tight">{formatCurrency(config.startingBalance)}</h2>
+          </div>
+        </div>
+
+        {/* Current Balance */}
+        <div className="bg-gradient-to-br from-cyan-600 to-blue-700 rounded-2xl p-6 shadow-xl shadow-cyan-900/20 flex flex-col justify-between text-white relative overflow-hidden">
+          <div className="absolute -right-4 -bottom-4 opacity-20 transform rotate-12">
+            <TrendingUp className="w-40 h-40" />
+          </div>
+          <div className="flex justify-between items-start relative z-10">
+            <p className="text-cyan-100 font-medium text-sm">Current Balance</p>
+            <div className="bg-black/20 px-2.5 py-1 rounded-md text-xs font-semibold backdrop-blur-md border border-white/10">
+               {stats.totalReturn.percent >= 0 ? '+' : ''}{formatPercent(stats.totalReturn.percent)} Total
+            </div>
+          </div>
+          <div className="mt-6 relative z-10">
+            <h2 className="text-4xl font-extrabold tracking-tight drop-shadow-sm">{formatCurrency(stats.currentBal)}</h2>
+          </div>
+        </div>
+
+        {/* Withdrawals */}
+        <div className="bg-[#131B2C] rounded-2xl p-6 border border-gray-800 flex flex-col justify-between relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rounded-full blur-2xl -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
+          <div className="flex justify-between items-start relative z-10">
+            <p className="text-gray-400 font-medium text-sm">Total Withdrawals</p>
+            <div className="p-2 bg-gray-800/50 rounded-lg text-rose-400 border border-gray-700/50">
+              <LogOut className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-6 relative z-10">
+            <h2 className="text-3xl font-bold text-white tracking-tight">{formatCurrency(config.withdrawals)}</h2>
+          </div>
+        </div>
+      </div>
+
+      {/* Chart Section */}
+      <div className="bg-[#131B2C] rounded-2xl border border-gray-800 p-6 shadow-sm">
+        <h3 className="text-sm font-semibold text-gray-300 mb-6 flex items-center gap-2">
+          <LineChart className="w-4 h-4 text-cyan-500" /> Cumulative Return Curve (Amount)
+        </h3>
+        <PerformanceChart pnlEntries={pnlEntries} />
+      </div>
+
+      {/* Return Metrics */}
+      <div className="bg-[#131B2C] rounded-2xl border border-gray-800 p-6 shadow-sm">
+        <h3 className="text-sm font-semibold text-gray-300 mb-6 flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-cyan-500" /> Return Analytics (PnL Based)
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <ReturnBox label="1 Month" data={stats.ret1M} />
+          <ReturnBox label="3 Months" data={stats.ret3M} />
+          <ReturnBox label="6 Months" data={stats.ret6M} />
+          <ReturnBox label="1 Year" data={stats.ret1Y} />
+          <ReturnBox label="All Time" data={stats.totalReturn} />
+        </div>
+      </div>
+
+      {/* Averages */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div className="bg-[#131B2C] rounded-2xl p-6 border border-gray-800 flex items-center gap-5">
+          <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 border border-emerald-500/20">
+            <DollarSign className="w-7 h-7" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">Avg Per Day</p>
+            <p className="text-2xl font-bold text-white tracking-tight">{formatCurrency(stats.avgPerDay)}</p>
+          </div>
+        </div>
+        <div className="bg-[#131B2C] rounded-2xl p-6 border border-gray-800 flex items-center gap-5">
+          <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20">
+            <CalendarIcon className="w-7 h-7" />
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">Avg Per Month</p>
+            <p className="text-2xl font-bold text-white tracking-tight">{formatCurrency(stats.avgPerMonth)}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReturnBox({ label, data }) {
+  const isPositive = data.amount >= 0;
+  return (
+    <div className="p-4 rounded-xl bg-[#0B0F19] border border-gray-800/80 transition-colors hover:border-gray-700">
+      <p className="text-xs text-gray-500 font-medium mb-2">{label}</p>
+      <p className={`text-lg font-bold tracking-tight ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+        {formatCurrency(data.amount)}
+      </p>
+      <div className="mt-1 flex items-center gap-1">
+        {isPositive ? <TrendingUp className="w-3 h-3 text-emerald-500/70" /> : <TrendingDown className="w-3 h-3 text-rose-500/70" />}
+        <p className={`text-xs font-semibold ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
+          {isPositive && '+'}{formatPercent(data.percent)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// --- Modern Infographic Line Chart ---
+function PerformanceChart({ pnlEntries }) {
+  // Compute cumulative PnL series
+  const dataPoints = useMemo(() => {
+    const valid = pnlEntries
+      .filter(e => !e.isHoliday && e.pnl !== undefined && e.pnl !== null)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+    if (valid.length === 0) return [];
+
+    let cumPnL = 0;
+    return valid.map(e => {
+      cumPnL += Number(e.pnl);
+      return { date: e.date, value: cumPnL };
+    });
+  }, [pnlEntries]);
+
+  if (dataPoints.length === 0) {
+    return (
+      <div className="h-64 flex flex-col items-center justify-center text-gray-500 border border-dashed border-gray-700 rounded-xl">
+        <LineChart className="w-8 h-8 mb-2 opacity-50" />
+        <p className="text-sm">Not enough data to display chart.</p>
+      </div>
+    );
+  }
+
+  // Chart dimensions
+  const width = 800;
+  const height = 240;
+  const padding = 20;
+
+  const values = dataPoints.map(d => d.value);
+  const minVal = Math.min(...values, 0); // Ground at 0 or lowest negative
+  const maxVal = Math.max(...values, 100); 
+
+  const scaleX = (index) => padding + (index / Math.max(1, dataPoints.length - 1)) * (width - padding * 2);
+  const scaleY = (val) => height - padding - ((val - minVal) / Math.max(1, maxVal - minVal)) * (height - padding * 2);
+
+  // Generate SVG paths
+  let pathD = `M ${scaleX(0)},${scaleY(dataPoints[0].value)} `;
+  dataPoints.forEach((d, i) => {
+    if (i > 0) pathD += `L ${scaleX(i)},${scaleY(d.value)} `;
+  });
+
+  const areaD = `${pathD} L ${scaleX(dataPoints.length - 1)},${height} L ${scaleX(0)},${height} Z`;
+
+  const isOverallPositive = dataPoints[dataPoints.length - 1].value >= 0;
+  const strokeColor = isOverallPositive ? "#06b6d4" : "#f43f5e"; // cyan-500 or rose-500
+  const stopColor1 = isOverallPositive ? "rgba(6, 182, 212, 0.3)" : "rgba(244, 63, 94, 0.3)";
+  const stopColor2 = isOverallPositive ? "rgba(6, 182, 212, 0)" : "rgba(244, 63, 94, 0)";
+
+  return (
+    <div className="relative w-full overflow-x-auto pb-4 custom-scrollbar">
+      <div className="min-w-[600px]">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto drop-shadow-md">
+          <defs>
+            <linearGradient id="gradientArea" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={stopColor1} />
+              <stop offset="100%" stopColor={stopColor2} />
+            </linearGradient>
+            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+          </defs>
+          
+          {/* Zero Line (if minVal < 0) */}
+          {minVal < 0 && (
+            <line 
+              x1={padding} y1={scaleY(0)} 
+              x2={width - padding} y2={scaleY(0)} 
+              stroke="#334155" strokeWidth="1" strokeDasharray="4 4" 
+            />
+          )}
+
+          {/* Area under curve */}
+          <path d={areaD} fill="url(#gradientArea)" />
+          
+          {/* Main Line */}
+          <path d={pathD} fill="none" stroke={strokeColor} strokeWidth="3" filter="url(#glow)" strokeLinejoin="round" />
+          
+          {/* Points (Only show last point to keep it modern/clean) */}
+          <circle 
+            cx={scaleX(dataPoints.length - 1)} 
+            cy={scaleY(dataPoints[dataPoints.length - 1].value)} 
+            r="5" fill="#0B0F19" stroke={strokeColor} strokeWidth="2" 
+          />
+        </svg>
+
+        {/* Labels for Max/Min/Current */}
+        <div className="absolute top-0 right-4 text-right pointer-events-none">
+          <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Current</p>
+          <p className={`text-lg font-bold ${isOverallPositive ? 'text-cyan-400' : 'text-rose-400'}`}>
+            {formatCurrency(dataPoints[dataPoints.length - 1]?.value || 0)}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Full Year Calendar Component ---
+function FullYearCalendar({ pnlEntries, appUser, onDayClick }) {
+  const [year, setYear] = useState(new Date().getFullYear());
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      
+      {/* Header controls */}
+      <div className="bg-[#131B2C] border border-gray-800 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+        <h2 className="text-lg font-bold text-white flex items-center gap-2">
+          <CalendarIcon className="w-5 h-5 text-cyan-500" /> Yearly Master Grid
+        </h2>
+        <div className="flex items-center gap-4 bg-[#0B0F19] rounded-lg p-1 border border-gray-800">
+          <button onClick={() => setYear(y => y - 1)} className="p-1.5 hover:bg-gray-800 rounded-md text-gray-400 transition-colors">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <span className="text-lg font-bold text-cyan-400 w-16 text-center">{year}</span>
+          <button onClick={() => setYear(y => y + 1)} className="p-1.5 hover:bg-gray-800 rounded-md text-gray-400 transition-colors">
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* 12 Months Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {Array.from({ length: 12 }).map((_, monthIndex) => (
+          <MonthCard 
+            key={`${year}-${monthIndex}`}
+            year={year}
+            month={monthIndex}
+            pnlEntries={pnlEntries}
+            appUser={appUser}
+            onDayClick={onDayClick}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MonthCard({ year, month, pnlEntries, appUser, onDayClick }) {
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+
+  const days = [];
+  for (let i = 0; i < firstDayOfWeek; i++) {
+    days.push(null);
+  }
+  for (let i = 1; i <= daysInMonth; i++) {
+    days.push(new Date(year, month, i));
+  }
+
+  return (
+    <div className="bg-[#131B2C] border border-gray-800 rounded-2xl p-4 shadow-sm">
+      <h3 className="text-md font-bold text-gray-300 mb-4 px-2 tracking-wide">{monthNames[month]}</h3>
+      
+      <div className="grid grid-cols-7 gap-1 text-center mb-1">
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+          <div key={`${d}-${i}`} className="text-[10px] font-bold text-gray-600 uppercase">
+            {d}
+          </div>
+        ))}
+      </div>
+      
+      <div className="grid grid-cols-7 gap-1">
+        {days.map((date, idx) => {
+          if (!date) return <div key={`empty-${idx}`} className="p-1"></div>;
+
+          const dateStr = getDateString(date);
+          const entry = pnlEntries.find(e => e.id === dateStr);
+          const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+          const isHoliday = entry?.isHoliday;
+          const hasPnL = entry && entry.pnl !== undefined && entry.pnl !== null && !isHoliday;
+
+          // Theme logic for each day cell
+          let bgClass = "bg-[#0B0F19] border border-gray-800/50 hover:border-gray-600";
+          let textClass = "text-gray-400";
+          let pnlElement = null;
+
+          if (isWeekend) {
+            bgClass = "bg-gray-900/40 border-transparent opacity-50";
+            textClass = "text-gray-600";
+          } else if (isHoliday) {
+            // Grey out holidays
+            bgClass = "bg-gray-800 border-gray-700 opacity-60 bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(255,255,255,0.05)_2px,rgba(255,255,255,0.05)_4px)]";
+            textClass = "text-gray-500 line-through";
+          } else if (hasPnL) {
+            bgClass = entry.pnl >= 0 
+              ? "bg-[#064e3b]/20 border-emerald-500/30 hover:border-emerald-500" 
+              : "bg-[#7f1d1d]/20 border-rose-500/30 hover:border-rose-500";
+            textClass = "text-gray-200 font-semibold";
+            
+            pnlElement = (
+              <span className={`text-[8px] font-bold block truncate mt-0.5 leading-none ${entry.pnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                 {entry.pnl > 0 ? '+' : ''}{new Intl.NumberFormat('en-IN', { notation: "compact", compactDisplay: "short" }).format(entry.pnl)}
+              </span>
+            );
+          }
+
+          return (
+            <div 
+              key={dateStr}
+              onClick={() => {
+                if (appUser.role === 'master' && !isWeekend) {
+                  onDayClick(dateStr);
+                }
+              }}
+              className={`flex flex-col items-center justify-center p-1 h-12 rounded-lg transition-all ${bgClass} ${appUser.role === 'master' && !isWeekend ? 'cursor-pointer hover:shadow-md hover:z-10 relative' : 'cursor-default'}`}
+              title={hasPnL ? formatCurrency(entry.pnl) : isHoliday ? 'Holiday' : ''}
+            >
+              <span className={`text-xs ${textClass}`}>
+                {date.getDate()}
+              </span>
+              {pnlElement}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// --- Modals ---
+function ConfigModal({ config, onClose }) {
+  const [balance, setBalance] = useState(config.startingBalance || 0);
+  const [withdrawals, setWithdrawals] = useState(config.withdrawals || 0);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'algo_config', 'main');
+      await setDoc(docRef, { 
+        startingBalance: Number(balance), 
+        withdrawals: Number(withdrawals) 
+      }, { merge: true });
+      onClose();
+    } catch (error) {
+      console.error("Error saving config:", error);
+      alert("Failed to save configuration.");
+    }
+    setIsSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-[#131B2C] border border-gray-700 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-[#0B0F19]">
+          <h3 className="font-bold text-white flex items-center gap-2">
+            <Settings className="w-5 h-5 text-cyan-500" /> Global Settings
+          </h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">✕</button>
+        </div>
+        <div className="p-6 space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1.5">Starting Balance</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">₹</span>
+              <input 
+                type="number" 
+                value={balance} 
+                onChange={(e) => setBalance(e.target.value)}
+                className="w-full pl-8 pr-4 py-2.5 bg-[#1e293b] border border-gray-700 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-400 mb-1.5">Total Withdrawals</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">₹</span>
+              <input 
+                type="number" 
+                value={withdrawals} 
+                onChange={(e) => setWithdrawals(e.target.value)}
+                className="w-full pl-8 pr-4 py-2.5 bg-[#1e293b] border border-gray-700 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all"
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">Adjusting this will reflect correctly in your current balance calculations.</p>
+          </div>
+        </div>
+        <div className="px-6 py-4 bg-[#0B0F19] flex justify-end gap-3 border-t border-gray-800">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-400 hover:bg-gray-800 rounded-lg transition-colors">Cancel</button>
+          <button 
+            onClick={handleSave} 
+            disabled={isSaving}
+            className="px-5 py-2 text-sm font-medium bg-cyan-600 text-white hover:bg-cyan-500 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {isSaving ? 'Saving...' : 'Save Settings'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DayModal({ dateStr, entry, onClose }) {
+  const [pnl, setPnl] = useState(entry.pnl || '');
+  const [isHoliday, setIsHoliday] = useState(entry.isHoliday || false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const displayDate = new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'pnl_entries', dateStr);
+      if (pnl === '' && !isHoliday) {
+        await deleteDoc(docRef);
+      } else {
+        await setDoc(docRef, { 
+          date: dateStr,
+          pnl: isHoliday ? 0 : Number(pnl), 
+          isHoliday 
+        });
+      }
+      onClose();
+    } catch (error) {
+      console.error("Error saving entry:", error);
+      alert("Failed to save entry.");
+    }
+    setIsSaving(false);
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm("Remove data for this day?")) return;
+    setIsSaving(true);
+    try {
+      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'pnl_entries', dateStr);
+      await deleteDoc(docRef);
+      onClose();
+    } catch (error) {
+      console.error("Error deleting:", error);
+    }
+    setIsSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-[#131B2C] border border-gray-700 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
+        <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-[#0B0F19]">
+          <h3 className="font-bold text-white flex items-center gap-2">
+             <CalendarIcon className="w-5 h-5 text-cyan-500" /> {displayDate}
+          </h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">✕</button>
+        </div>
+        <div className="p-6 space-y-6">
+          
+          <label className="flex items-center gap-3 p-4 border border-gray-700 bg-[#1e293b] rounded-xl cursor-pointer hover:border-gray-500 transition-colors">
+            <input 
+              type="checkbox" 
+              checked={isHoliday} 
+              onChange={(e) => {
+                setIsHoliday(e.target.checked);
+                if (e.target.checked) setPnl('');
+              }}
+              className="w-5 h-5 text-cyan-500 bg-gray-800 border-gray-600 rounded focus:ring-cyan-500 focus:ring-offset-gray-900"
+            />
+            <span className="text-sm font-medium text-gray-200">Mark as Holiday (Grey Out)</span>
+          </label>
+
+          {!isHoliday && (
+            <div className="animate-in fade-in zoom-in-95">
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">Daily PnL Amount</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">₹</span>
+                <input 
+                  type="number" 
+                  value={pnl} 
+                  onChange={(e) => setPnl(e.target.value)}
+                  placeholder="e.g. 5000 or -2000"
+                  className="w-full pl-8 pr-4 py-3 bg-[#1e293b] border border-gray-700 text-white rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all text-lg"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                Use negative numbers for losses.
+              </p>
+            </div>
+          )}
+
+        </div>
+        <div className="px-6 py-4 bg-[#0B0F19] flex justify-between items-center border-t border-gray-800">
+          {(entry.pnl !== undefined || entry.isHoliday) ? (
+             <button 
+              onClick={handleDelete} 
+              disabled={isSaving}
+              className="px-3 py-2 text-sm font-medium text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+            >
+              Remove
+            </button>
+          ) : <div></div>}
+         
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-400 hover:bg-gray-800 rounded-lg transition-colors">Cancel</button>
+            <button 
+              onClick={handleSave} 
+              disabled={isSaving}
+              className="px-5 py-2 text-sm font-medium bg-cyan-600 text-white hover:bg-cyan-500 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {isSaving ? 'Saving...' : 'Save Data'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Custom Login Component ---
+function LoginScreen({ onLogin }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const success = onLogin(username, password);
+    if (!success) {
+      setError('Invalid credentials. Please try again.');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0B0F19] flex items-center justify-center p-4 selection:bg-cyan-500/30">
+      <div className="max-w-md w-full bg-[#131B2C] rounded-2xl shadow-2xl border border-gray-800 overflow-hidden">
+        <div className="p-8 text-center bg-gradient-to-b from-gray-800 to-[#131B2C] border-b border-gray-800 relative">
+          <div className="absolute inset-0 bg-cyan-500/5 blur-xl"></div>
+          <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl shadow-lg shadow-cyan-500/20 flex items-center justify-center mx-auto mb-5 relative z-10">
+            <LineChart className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-white relative z-10 tracking-tight">Shubham's Algo</h2>
+          <p className="text-gray-400 mt-1 text-sm relative z-10">Secure Performance Portal</p>
+        </div>
+        <div className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/50 text-rose-400 text-sm rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" /> {error}
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">Username</label>
+              <input
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-4 py-2.5 bg-[#1e293b] border border-gray-700 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all placeholder-gray-600"
+                placeholder="Enter username"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1.5">Password</label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-2.5 bg-[#1e293b] border border-gray-700 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all placeholder-gray-600"
+                placeholder="Enter password"
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-medium py-3 rounded-lg transition-all mt-4 shadow-lg shadow-cyan-900/30"
+            >
+              Secure Sign In
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
