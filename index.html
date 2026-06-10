@@ -402,26 +402,9 @@
       return `${year}-${month}-${day}`;
     };
 
-    // --- Auto Logout Timer System ---
+    // --- Auto Logout Timer System (Strict 2-Minute Session) ---
     const TIMER_KEY = 'shubham_algo_timer_target';
-    const ACTIVITY_EVENTS = ['mousedown', 'keydown', 'touchstart', 'scroll', 'click']; // Replaced mousemove for stability
     let logoutTimerInterval;
-    let lastReset = 0;
-
-    function resetTimer() {
-      const now = Date.now();
-      // Throttle local storage writes to max 2 seconds
-      if (now - lastReset > 2000) {
-        const target = now + 120 * 1000;
-        localStorage.setItem(TIMER_KEY, target.toString());
-        
-        const targetSaved = parseInt(localStorage.getItem(TIMER_KEY) || '0', 10);
-        const timeLeft = Math.round((targetSaved - Date.now()) / 1000);
-        updateTimerUI(timeLeft);
-        
-        lastReset = now;
-      }
-    }
 
     function updateTimerUI(seconds) {
       const timerEl = document.getElementById('nav-timer');
@@ -439,14 +422,10 @@
     }
 
     function startLogoutTimer() {
-      // If no timer exists, or existing timer is expired, start a fresh one
+      // If no timer exists, or existing timer is expired, start a fresh one for exactly 2 minutes
       if (!localStorage.getItem(TIMER_KEY) || parseInt(localStorage.getItem(TIMER_KEY), 10) < Date.now()) {
-         lastReset = 0; // Force update
-         resetTimer(); 
+         localStorage.setItem(TIMER_KEY, (Date.now() + 120 * 1000).toString());
       }
-      
-      // Use more deliberate events than mousemove to avoid false triggers
-      ACTIVITY_EVENTS.forEach(e => window.addEventListener(e, resetTimer, { passive: true }));
       
       clearInterval(logoutTimerInterval);
       logoutTimerInterval = setInterval(() => {
@@ -465,7 +444,6 @@
 
     function stopLogoutTimer() {
       clearInterval(logoutTimerInterval);
-      ACTIVITY_EVENTS.forEach(e => window.removeEventListener(e, resetTimer, { passive: true }));
     }
 
     function handleLogout() {
@@ -1074,7 +1052,7 @@
         localStorage.setItem(USER_KEY, JSON.stringify(state.appUser));
         err.classList.add('hidden');
         
-        lastReset = 0; // Force timer reset on new login
+        localStorage.setItem(TIMER_KEY, (Date.now() + 120 * 1000).toString()); // Start strict 2-min session
         updateUI(); 
         startLogoutTimer();
         initFirebaseData(); 
@@ -1083,7 +1061,7 @@
         localStorage.setItem(USER_KEY, JSON.stringify(state.appUser));
         err.classList.add('hidden');
         
-        lastReset = 0; // Force timer reset on new login
+        localStorage.setItem(TIMER_KEY, (Date.now() + 120 * 1000).toString()); // Start strict 2-min session
         updateUI(); 
         startLogoutTimer();
         initFirebaseData();
