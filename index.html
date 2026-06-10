@@ -404,13 +404,14 @@
 
     // --- Auto Logout Timer System ---
     const TIMER_KEY = 'shubham_algo_timer_target';
+    const ACTIVITY_EVENTS = ['mousedown', 'keydown', 'touchstart', 'scroll', 'click']; // Replaced mousemove for stability
     let logoutTimerInterval;
     let lastReset = 0;
 
     function resetTimer() {
       const now = Date.now();
-      // Throttle local storage writes to max 1 per second
-      if (now - lastReset > 1000) {
+      // Throttle local storage writes to max 2 seconds
+      if (now - lastReset > 2000) {
         const target = now + 120 * 1000;
         localStorage.setItem(TIMER_KEY, target.toString());
         
@@ -444,9 +445,8 @@
          resetTimer(); 
       }
       
-      window.addEventListener('mousemove', resetTimer);
-      window.addEventListener('keypress', resetTimer);
-      window.addEventListener('click', resetTimer);
+      // Use more deliberate events than mousemove to avoid false triggers
+      ACTIVITY_EVENTS.forEach(e => window.addEventListener(e, resetTimer, { passive: true }));
       
       clearInterval(logoutTimerInterval);
       logoutTimerInterval = setInterval(() => {
@@ -465,9 +465,7 @@
 
     function stopLogoutTimer() {
       clearInterval(logoutTimerInterval);
-      window.removeEventListener('mousemove', resetTimer);
-      window.removeEventListener('keypress', resetTimer);
-      window.removeEventListener('click', resetTimer);
+      ACTIVITY_EVENTS.forEach(e => window.removeEventListener(e, resetTimer, { passive: true }));
     }
 
     function handleLogout() {
