@@ -387,6 +387,11 @@
             Use negative numbers for losses.
           </p>
         </div>
+        
+        <div class="transition-all duration-300">
+          <label class="block text-sm font-semibold text-gray-400 mb-2">Note (Optional)</label>
+          <input type="text" id="input-note" placeholder="Add a note for this day..." class="w-full px-4 py-3 bg-[#0B0F19] border border-gray-700 text-white rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all text-sm shadow-inner">
+        </div>
       </div>
       <div class="px-6 py-5 bg-[#0B0F19]/80 flex justify-between items-center border-t border-gray-800">
         <button id="btn-delete-day" class="hidden px-4 py-2.5 text-sm font-bold text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors border border-transparent hover:border-rose-500/20">
@@ -972,7 +977,7 @@
           } else if (isHoliday) {
             bgClass = "bg-orange-500/10 border-orange-500/30 hover:border-orange-500/50 shadow-inner";
             textClass = "text-orange-400 font-bold";
-            pnlHtml = `<span class="text-[9px] font-extrabold block truncate mt-1 leading-none tracking-widest text-orange-500 uppercase">HOL</span>`;
+            pnlHtml = `<span class="text-xs font-black block mt-1 leading-none text-orange-500">H</span>`;
             tooltipData = "Holiday";
           } else if (hasPnL) {
             const isPos = entry.pnl >= 0;
@@ -984,8 +989,11 @@
           }
 
           if (note && !isWeekend) {
-              if(hasPnL) tooltipData += ` <span class="text-gray-500 font-normal ml-2">| ${note}</span>`;
-              else tooltipData = note;
+              if (hasPnL || isHoliday) {
+                  tooltipData += ` <span class="text-gray-600 mx-2">|</span> <span class="text-gray-300 font-normal">${note}</span>`;
+              } else {
+                  tooltipData = `<span class="text-gray-300 font-normal">${note}</span>`;
+              }
           }
 
           const cursor = (state.appUser?.role === 'master' && !isWeekend) ? 'cursor-pointer hover:shadow-lg hover:z-10 hover:-translate-y-0.5 relative transform transition-all' : 'cursor-default';
@@ -1256,7 +1264,7 @@
 
     function openDayModal(dateStr) {
       state.selectedDateStr = dateStr;
-      const entry = state.pnlEntries.find(e => e.id === dateStr) || { pnl: '', isHoliday: false };
+      const entry = state.pnlEntries.find(e => e.id === dateStr) || { pnl: '', isHoliday: false, note: '' };
       
       const dateObj = new Date(dateStr);
       document.getElementById('modal-day-title').innerHTML = `<i data-lucide="calendar" class="w-5 h-5 text-cyan-500"></i> ${dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
@@ -1264,11 +1272,13 @@
 
       const chkHoliday = document.getElementById('input-holiday');
       const inputPnl = document.getElementById('input-pnl');
+      const inputNote = document.getElementById('input-note');
       const pnlContainer = document.getElementById('pnl-input-container');
       const btnDelete = document.getElementById('btn-delete-day');
 
       chkHoliday.checked = entry.isHoliday;
       inputPnl.value = entry.pnl !== undefined && entry.pnl !== null ? entry.pnl : '';
+      inputNote.value = entry.note || '';
       
       if(entry.isHoliday) {
         pnlContainer.classList.add('hidden');
@@ -1276,7 +1286,7 @@
         pnlContainer.classList.remove('hidden');
       }
 
-      if (entry.pnl !== undefined || entry.isHoliday) {
+      if ((entry.pnl !== undefined && entry.pnl !== null) || entry.isHoliday || entry.note) {
         btnDelete.classList.remove('hidden');
       } else {
         btnDelete.classList.add('hidden');
@@ -1284,18 +1294,16 @@
 
       showModal('modal-day');
       
-      // Auto-focus the input field if it's not a holiday
       if(!entry.isHoliday) {
         setTimeout(() => {
             const pnlInput = document.getElementById('input-pnl');
             pnlInput.focus();
-            // Optional: select existing text for quick overwriting
             if(pnlInput.value) pnlInput.select(); 
-        }, 100); // Small delay to allow modal animation to finish
+        }, 100);
       }
     }
 
-    // --- Core Interactions ---
+    // --- Event Listeners ---
     document.getElementById('toggle-password').addEventListener('click', () => {
       const pwdInput = document.getElementById('password');
       const eyeIcon = document.getElementById('eye-icon');
@@ -1447,25 +1455,29 @@
       
       const isHoliday = document.getElementById('input-holiday').checked;
       const pnlVal = document.getElementById('input-pnl').value;
-      const pnlNum = isHoliday ? 0 : Number(pnlVal);
+      const noteVal = document.getElementById('input-note').value.trim();
+      
+      const pnlNum = isHoliday ? 0 : (pnlVal === '' ? null : Number(pnlVal));
 
       const existingIdx = state.pnlEntries.findIndex(x => x.id === state.selectedDateStr);
-      if (pnlVal === '' && !isHoliday) {
-        if (existingIdx >= 0) state.pnlEntries.splice(existingIdx, 1);
-      } else {
-        const newEntry = { id: state.selectedDateStr, date: state.selectedDateStr, pnl: pnlNum, isHoliday };
-        if (existingIdx >= 0) state.pnlEntries[existingIdx] = newEntry;
-        else state.pnlEntries.push(newEntry);
-      }
       
-      updateUI();
-      hideModal('modal-day');
+      if (pnlVal === '' && !isHoliday && noteVal === '') {
+        if (existingIdx >= 0) state.pnlEntries.splice(existingIdx, 1);
+        updateUI();
+        hideModal('modal-day');
 
-      const docRef = getPnlDocRef(state.selectedDateStr);
-      if (pnlVal === '' && !isHoliday) {
+        const docRef = getPnlDocRef(state.selectedDateStr);
         deleteDoc(docRef).catch(console.error);
       } else {
-        setDoc(docRef, { date: state.selectedDateStr, pnl: pnlNum, isHoliday }).catch(console.error);
+        const newEntry = { id: state.selectedDateStr, date: state.selectedDateStr, pnl: pnlNum, isHoliday, note: noteVal };
+        if (existingIdx >= 0) state.pnlEntries[existingIdx] = newEntry;
+        else state.pnlEntries.push(newEntry);
+        
+        updateUI();
+        hideModal('modal-day');
+
+        const docRef = getPnlDocRef(state.selectedDateStr);
+        setDoc(docRef, newEntry).catch(console.error);
       }
     });
 
