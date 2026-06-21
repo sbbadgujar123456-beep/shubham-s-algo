@@ -214,7 +214,7 @@
         <div class="flex justify-between items-start relative z-10 mb-2">
           <h3 class="text-sm font-bold text-gray-300 flex items-center gap-3 tracking-wide">
             <div class="p-1.5 bg-gray-800 rounded-md border border-gray-700"><i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i></div>
-            Total Return
+            Total Profit Chart
           </h3>
           <div id="chart-badge-container"></div>
         </div>
@@ -225,7 +225,7 @@
       <div class="bg-[#131B2C] rounded-3xl border border-gray-800 p-6 shadow-xl animate-fade-up delay-300">
         <h3 class="text-sm font-bold text-gray-300 mb-6 flex items-center gap-3 tracking-wide">
           <div class="p-1.5 bg-gray-800 rounded-md border border-gray-700"><i data-lucide="bar-chart-2" class="w-4 h-4 text-cyan-400"></i></div>
-          Return Analytics (PnL Based)
+          Profit Summary
         </h3>
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4" id="returns-grid">
           <!-- Filled by JS -->
@@ -261,7 +261,7 @@
       <div class="bg-[#131B2C] border border-gray-800 rounded-3xl p-5 flex items-center justify-between shadow-xl animate-fade-up">
         <h2 class="text-xl font-bold text-white flex items-center gap-3 tracking-wide">
           <div class="p-2 bg-gray-800 rounded-xl border border-gray-700"><i data-lucide="grid" class="w-5 h-5 text-cyan-400"></i></div>
-          Yearly Calender
+          Yearly Calendar
         </h2>
         <div class="flex items-center gap-4 bg-[#0B0F19] rounded-xl p-1.5 border border-gray-800 shadow-inner">
           <button id="cal-prev" class="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors">
@@ -434,6 +434,7 @@
       activeTab: sessionStorage.getItem(TAB_KEY) || 'dashboard',   
       config: { startingBalance: 100000, withdrawals: 0 },
       pnlEntries: [],
+      globalHolidays: [],
       calendarYear: new Date().getFullYear(),
       selectedDateStr: null,
       dataUnsubs: [],
@@ -624,7 +625,7 @@
       const t1Y = new Date(); t1Y.setDate(now.getDate() - 365);
 
       state.pnlEntries.forEach(entry => {
-        if (entry.isHoliday) return;
+        if (entry.isHoliday || state.globalHolidays.some(h => h.id === entry.date)) return;
         const pnl = Number(entry.pnl) || 0;
         totalPnL += pnl;
         
@@ -724,7 +725,10 @@
       const badgeContainer = document.getElementById('chart-badge-container');
       
       const validEntries = state.pnlEntries
-        .filter(e => !e.isHoliday && e.pnl !== undefined && e.pnl !== null)
+        .filter(e => {
+            const isHoliday = e.isHoliday || state.globalHolidays.some(h => h.id === e.date);
+            return !isHoliday && e.pnl !== undefined && e.pnl !== null;
+        })
         .sort((a, b) => new Date(a.date) - new Date(b.date));
 
       if (validEntries.length === 0) {
@@ -777,7 +781,7 @@
 
       badgeContainer.innerHTML = `
         <div class="text-right animate-fade-up delay-300 bg-[#0B0F19] p-3 rounded-xl border border-gray-800 shadow-xl">
-          <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Current Cumulative</p>
+          <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Current Total</p>
           <p class="text-2xl font-black ${isOverallPos ? 'text-emerald-400' : 'text-rose-400'}">
             ${currentValFormatted}
           </p>
@@ -959,9 +963,14 @@
         for (let i = 1; i <= daysInMonth; i++) {
           const date = new Date(state.calendarYear, m, i);
           const dateStr = getDateString(date);
-          const entry = state.pnlEntries.find(e => e.id === dateStr);
+          
+          const profileEntry = state.pnlEntries.find(e => e.id === dateStr);
+          const globalEntry = state.globalHolidays.find(e => e.id === dateStr);
+          
           const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-          const isHoliday = entry?.isHoliday;
+          const isHoliday = !!globalEntry || profileEntry?.isHoliday;
+          const entry = isHoliday ? (globalEntry || profileEntry) : profileEntry;
+          
           const hasPnL = entry && entry.pnl !== undefined && entry.pnl !== null && !isHoliday;
           const note = entry?.note || null;
 
@@ -996,7 +1005,7 @@
               }
           }
 
-          const cursor = (state.appUser?.role === 'master' && !isWeekend) ? 'cursor-pointer hover:shadow-lg hover:z-10 hover:-translate-y-0.5 relative transform transition-all' : 'cursor-default';
+          const cursor = (state.appUser?.role === 'master' && !isWeekend) ? 'cursor-pointer hover:shadow-lg relative transition-all' : 'cursor-default';
           
           daysHtml += `
             <div data-date="${dateStr}" data-weekend="${isWeekend}" data-tooltip='${tooltipData}' class="day-cell flex flex-col items-center justify-center p-1 h-14 rounded-xl transition-all duration-200 ${bgClass} ${cursor}">
@@ -1193,7 +1202,14 @@
          console.error("Entries fetch error:", err);
       });
 
-      state.dataUnsubs.push(unsubConfig, unsubEntries);
+      const unsubHolidays = onSnapshot(collection(db, 'global_holidays'), (snapshot) => {
+        state.globalHolidays = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        updateUI();
+      }, err => {
+         console.error("Holidays fetch error:", err);
+      });
+
+      state.dataUnsubs.push(unsubConfig, unsubEntries, unsubHolidays);
     }
 
     async function initializeAuth() {
@@ -1264,7 +1280,11 @@
 
     function openDayModal(dateStr) {
       state.selectedDateStr = dateStr;
-      const entry = state.pnlEntries.find(e => e.id === dateStr) || { pnl: '', isHoliday: false, note: '' };
+      
+      const profileEntry = state.pnlEntries.find(e => e.id === dateStr) || {};
+      const globalEntry = state.globalHolidays.find(e => e.id === dateStr);
+      
+      const isHoliday = !!globalEntry || profileEntry.isHoliday;
       
       const dateObj = new Date(dateStr);
       document.getElementById('modal-day-title').innerHTML = `<i data-lucide="calendar" class="w-5 h-5 text-cyan-500"></i> ${dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
@@ -1276,17 +1296,17 @@
       const pnlContainer = document.getElementById('pnl-input-container');
       const btnDelete = document.getElementById('btn-delete-day');
 
-      chkHoliday.checked = entry.isHoliday;
-      inputPnl.value = entry.pnl !== undefined && entry.pnl !== null ? entry.pnl : '';
-      inputNote.value = entry.note || '';
+      chkHoliday.checked = isHoliday;
+      inputPnl.value = profileEntry.pnl !== undefined && profileEntry.pnl !== null ? profileEntry.pnl : '';
+      inputNote.value = globalEntry?.note || profileEntry.note || '';
       
-      if(entry.isHoliday) {
+      if(isHoliday) {
         pnlContainer.classList.add('hidden');
       } else {
         pnlContainer.classList.remove('hidden');
       }
 
-      if ((entry.pnl !== undefined && entry.pnl !== null) || entry.isHoliday || entry.note) {
+      if ((profileEntry.pnl !== undefined && profileEntry.pnl !== null) || isHoliday || inputNote.value) {
         btnDelete.classList.remove('hidden');
       } else {
         btnDelete.classList.add('hidden');
@@ -1294,11 +1314,9 @@
 
       showModal('modal-day');
       
-      if(!entry.isHoliday) {
+      if(!isHoliday) {
         setTimeout(() => {
-            const pnlInput = document.getElementById('input-pnl');
-            pnlInput.focus();
-            if(pnlInput.value) pnlInput.select(); 
+          document.getElementById('input-pnl').focus();
         }, 100);
       }
     }
@@ -1457,27 +1475,23 @@
       const pnlVal = document.getElementById('input-pnl').value;
       const noteVal = document.getElementById('input-note').value.trim();
       
-      const pnlNum = isHoliday ? 0 : (pnlVal === '' ? null : Number(pnlVal));
+      const pnlNum = isHoliday ? null : (pnlVal === '' ? null : Number(pnlVal));
 
-      const existingIdx = state.pnlEntries.findIndex(x => x.id === state.selectedDateStr);
-      
-      if (pnlVal === '' && !isHoliday && noteVal === '') {
-        if (existingIdx >= 0) state.pnlEntries.splice(existingIdx, 1);
-        updateUI();
-        hideModal('modal-day');
+      hideModal('modal-day');
 
-        const docRef = getPnlDocRef(state.selectedDateStr);
-        deleteDoc(docRef).catch(console.error);
+      const globalRef = doc(db, 'global_holidays', state.selectedDateStr);
+      const profileRef = getPnlDocRef(state.selectedDateStr);
+
+      if (isHoliday) {
+        setDoc(globalRef, { date: state.selectedDateStr, isHoliday: true, note: noteVal }).catch(console.error);
+        deleteDoc(profileRef).catch(() => {});
       } else {
-        const newEntry = { id: state.selectedDateStr, date: state.selectedDateStr, pnl: pnlNum, isHoliday, note: noteVal };
-        if (existingIdx >= 0) state.pnlEntries[existingIdx] = newEntry;
-        else state.pnlEntries.push(newEntry);
-        
-        updateUI();
-        hideModal('modal-day');
-
-        const docRef = getPnlDocRef(state.selectedDateStr);
-        setDoc(docRef, newEntry).catch(console.error);
+        deleteDoc(globalRef).catch(() => {});
+        if (pnlVal === '' && noteVal === '') {
+          deleteDoc(profileRef).catch(console.error);
+        } else {
+          setDoc(profileRef, { date: state.selectedDateStr, pnl: pnlNum, note: noteVal }).catch(console.error);
+        }
       }
     });
 
@@ -1485,14 +1499,13 @@
       if(!state.firebaseUser || !state.selectedDateStr) return;
       if (!window.confirm("Remove data for this day?")) return;
       
-      const existingIdx = state.pnlEntries.findIndex(x => x.id === state.selectedDateStr);
-      if (existingIdx >= 0) state.pnlEntries.splice(existingIdx, 1);
-      
-      updateUI();
       hideModal('modal-day');
 
-      const docRef = getPnlDocRef(state.selectedDateStr);
-      deleteDoc(docRef).catch(console.error);
+      const globalRef = doc(db, 'global_holidays', state.selectedDateStr);
+      const profileRef = getPnlDocRef(state.selectedDateStr);
+
+      deleteDoc(globalRef).catch(console.error);
+      deleteDoc(profileRef).catch(console.error);
     });
 
     // Boot Environment
