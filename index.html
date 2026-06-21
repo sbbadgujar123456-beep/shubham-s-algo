@@ -45,11 +45,6 @@
       border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
-    .holiday-bg {
-      background: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px);
-      background-color: #1f2937;
-    }
-
     /* Base styles */
     body { background-color: #0B0F19; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; }
     .hidden { display: none !important; }
@@ -283,6 +278,12 @@
         <!-- Rendered by JS -->
       </div>
     </div>
+    
+    <!-- Tooltip for Calendar -->
+    <div id="calendar-tooltip" class="absolute hidden bg-[#0B0F19]/95 border border-gray-700 text-white px-3 py-2 rounded-xl shadow-2xl z-50 pointer-events-none transform -translate-x-1/2 -translate-y-full backdrop-blur-xl whitespace-nowrap transition-opacity duration-150 opacity-0 mt-[-10px]">
+        <div id="tooltip-date" class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1"></div>
+        <div id="tooltip-content" class="text-sm font-bold"></div>
+    </div>
   </div>
 
   <!-- Modals -->
@@ -372,7 +373,7 @@
         
         <label class="flex items-center gap-4 p-4 border border-gray-700 bg-[#0B0F19] rounded-2xl cursor-pointer hover:border-gray-500 transition-colors shadow-inner">
           <input type="checkbox" id="input-holiday" class="w-5 h-5 text-cyan-500 bg-gray-800 border-gray-600 rounded focus:ring-cyan-500 focus:ring-offset-gray-900 cursor-pointer">
-          <span class="text-sm font-bold text-gray-300 tracking-wide">Mark as Holiday (Grey Out)</span>
+          <span class="text-sm font-bold text-gray-300 tracking-wide">Mark as Holiday (Orange)</span>
         </label>
 
         <div id="pnl-input-container" class="transition-all duration-300">
@@ -957,29 +958,40 @@
           const isWeekend = date.getDay() === 0 || date.getDay() === 6;
           const isHoliday = entry?.isHoliday;
           const hasPnL = entry && entry.pnl !== undefined && entry.pnl !== null && !isHoliday;
+          const note = entry?.note || null;
 
           let bgClass = "bg-[#0B0F19] border border-gray-800/80 hover:border-gray-500 shadow-inner";
           let textClass = "text-gray-400 font-medium";
           let pnlHtml = "";
+          let tooltipData = "No Trade";
 
           if (isWeekend) {
             bgClass = "bg-[#0B0F19]/40 border-transparent opacity-40";
             textClass = "text-gray-600 font-normal";
+            tooltipData = "Market Off";
           } else if (isHoliday) {
-            bgClass = "holiday-bg border-gray-700/50";
-            textClass = "text-gray-500 line-through font-bold";
+            bgClass = "bg-orange-500/10 border-orange-500/30 hover:border-orange-500/50 shadow-inner";
+            textClass = "text-orange-400 font-bold";
+            pnlHtml = `<span class="text-[9px] font-extrabold block truncate mt-1 leading-none tracking-widest text-orange-500 uppercase">HOL</span>`;
+            tooltipData = "Holiday";
           } else if (hasPnL) {
             const isPos = entry.pnl >= 0;
             bgClass = isPos ? "bg-[#064e3b]/30 border-emerald-500/40 hover:border-emerald-500" : "bg-[#7f1d1d]/30 border-rose-500/40 hover:border-rose-500";
             textClass = "text-gray-100 font-bold";
             const pnlColor = isPos ? "text-emerald-400" : "text-rose-400";
             pnlHtml = `<span class="text-[9px] font-extrabold block truncate mt-1 leading-none tracking-tight ${pnlColor}">${isPos?'+':''}${formatCompact(entry.pnl)}</span>`;
+            tooltipData = `${isPos?'+':''}${formatCurrency(entry.pnl)}`;
+          }
+
+          if (note && !isWeekend) {
+              if(hasPnL) tooltipData += ` <span class="text-gray-500 font-normal ml-2">| ${note}</span>`;
+              else tooltipData = note;
           }
 
           const cursor = (state.appUser?.role === 'master' && !isWeekend) ? 'cursor-pointer hover:shadow-lg hover:z-10 hover:-translate-y-0.5 relative transform transition-all' : 'cursor-default';
           
           daysHtml += `
-            <div data-date="${dateStr}" data-weekend="${isWeekend}" class="day-cell flex flex-col items-center justify-center p-1 h-14 rounded-xl transition-all duration-200 ${bgClass} ${cursor}">
+            <div data-date="${dateStr}" data-weekend="${isWeekend}" data-tooltip='${tooltipData}' class="day-cell flex flex-col items-center justify-center p-1 h-14 rounded-xl transition-all duration-200 ${bgClass} ${cursor}">
               <span class="text-xs ${textClass}">${i}</span>
               ${pnlHtml}
             </div>
@@ -1000,17 +1012,57 @@
       }
 
       grid.innerHTML = html;
+      
+      const tooltip = document.getElementById('calendar-tooltip');
+      const tooltipDate = document.getElementById('tooltip-date');
+      const tooltipContent = document.getElementById('tooltip-content');
 
-      // Re-bind Calendar day click events
-      if (state.appUser?.role === 'master') {
-        document.querySelectorAll('.day-cell').forEach(cell => {
-          cell.addEventListener('click', (e) => {
-            const el = e.currentTarget;
-            if (el.dataset.weekend === 'true') return;
-            openDayModal(el.dataset.date);
+      document.querySelectorAll('.day-cell').forEach(cell => {
+          // Hover interactions for ALL users
+          cell.addEventListener('mouseenter', (e) => {
+             const el = e.currentTarget;
+             const rect = el.getBoundingClientRect();
+             const dateObj = new Date(el.dataset.date);
+             
+             tooltipDate.innerText = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+             
+             let content = el.dataset.tooltip;
+             
+             if (content.includes('+')) {
+                 tooltipContent.className = "text-sm font-bold text-emerald-400";
+             } else if (content.includes('-') && !content.includes('Market Off') && !content.includes('No Trade')) {
+                 tooltipContent.className = "text-sm font-bold text-rose-400";
+             } else if (content === "Holiday") {
+                 tooltipContent.className = "text-sm font-bold text-orange-400";
+             } else {
+                 tooltipContent.className = "text-sm font-bold text-gray-300";
+             }
+             
+             tooltipContent.innerHTML = content;
+             
+             tooltip.style.left = `${rect.left + rect.width / 2 + window.scrollX}px`;
+             tooltip.style.top = `${rect.top + window.scrollY - 5}px`;
+             
+             tooltip.classList.remove('hidden');
+             // small delay to allow display:block to apply before animating opacity
+             setTimeout(() => tooltip.classList.remove('opacity-0'), 10);
           });
-        });
-      }
+          
+          cell.addEventListener('mouseleave', () => {
+             tooltip.classList.add('opacity-0');
+             setTimeout(() => tooltip.classList.add('hidden'), 150);
+          });
+
+          // Click interactions ONLY for master
+          if (state.appUser?.role === 'master') {
+            cell.addEventListener('click', (e) => {
+              const el = e.currentTarget;
+              if (el.dataset.weekend === 'true') return;
+              tooltip.classList.add('hidden'); // hide tooltip on click
+              openDayModal(el.dataset.date);
+            });
+          }
+      });
     }
 
     // Profile Management UI Rendering
@@ -1231,6 +1283,16 @@
       }
 
       showModal('modal-day');
+      
+      // Auto-focus the input field if it's not a holiday
+      if(!entry.isHoliday) {
+        setTimeout(() => {
+            const pnlInput = document.getElementById('input-pnl');
+            pnlInput.focus();
+            // Optional: select existing text for quick overwriting
+            if(pnlInput.value) pnlInput.select(); 
+        }, 100); // Small delay to allow modal animation to finish
+      }
     }
 
     // --- Core Interactions ---
