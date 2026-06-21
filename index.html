@@ -289,7 +289,7 @@
   
   <!-- Manage Profiles Modal (Master Only) -->
   <div id="modal-profiles" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md transition-opacity duration-300">
-    <div class="bg-[#131B2C] border border-gray-700 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-300" id="modal-profiles-content">
+    <div class="bg-[#131B2C] border border-gray-700 rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-300" id="modal-profiles-content">
       <div class="px-6 py-5 border-b border-gray-800 flex justify-between items-center bg-[#0B0F19]/50">
         <h3 class="font-bold text-white flex items-center gap-3 text-lg">
           <i data-lucide="users" class="w-5 h-5 text-cyan-500"></i> Manage Profiles
@@ -300,10 +300,16 @@
       </div>
       <div class="p-6 flex flex-col md:flex-row gap-8">
         <div class="flex-1 space-y-4">
-           <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Create New Profile</h4>
+           <h4 id="profile-form-title" class="text-xs font-bold text-gray-400 uppercase tracking-widest">Create New Profile</h4>
+           
+           <input type="hidden" id="editing-profile-id" value="">
            <input type="text" id="new-profile-username" placeholder="Username (e.g. AshishModi)" class="w-full px-4 py-3 bg-[#0B0F19] border border-gray-700 text-white rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none">
            <input type="text" id="new-profile-password" placeholder="Password" class="w-full px-4 py-3 bg-[#0B0F19] border border-gray-700 text-white rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none">
-           <button id="btn-add-profile" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg hover:shadow-cyan-500/25">Add Profile</button>
+           
+           <div class="flex gap-2">
+              <button id="btn-cancel-edit-profile" class="hidden px-4 py-3 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition-all">Cancel</button>
+              <button id="btn-add-profile" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg hover:shadow-cyan-500/25">Add Profile</button>
+           </div>
         </div>
         <div class="w-px bg-gray-800 hidden md:block"></div>
         <div class="flex-1 flex flex-col min-h-0">
@@ -448,7 +454,7 @@
       return `${year}-${month}-${day}`;
     };
 
-    // Database Reference Helpers (Preserves old data for master, creates isolated docs for sub-profiles)
+    // Database Reference Helpers
     function getConfigRef() {
         if (state.activeProfileId === 'master_data') return doc(db, 'algo_config', 'main');
         return doc(db, 'profiles', state.activeProfileId, 'data', 'config');
@@ -469,7 +475,6 @@
     let lastReset = 0;
 
     function resetTimer() {
-      // MASTER is immune to timer
       if (!state.appUser || state.appUser.role === 'master') return;
       
       const now = Date.now();
@@ -564,12 +569,11 @@
       const switcher = document.getElementById('profile-switcher');
       const timerContainer = document.getElementById('nav-timer-container');
 
-      // Master vs Sub-profile UI logic
       if (state.appUser.role === 'master') {
          btnSettings.classList.remove('hidden');
          btnManageProfiles.classList.remove('hidden');
          switcher.classList.remove('hidden');
-         timerContainer.classList.add('hidden'); // Disable timer visually for master
+         timerContainer.classList.add('hidden'); 
       } else {
          btnSettings.classList.add('hidden');
          btnManageProfiles.classList.add('hidden');
@@ -661,16 +665,15 @@
       const isOverallPos = stats.totalReturn.percent >= 0;
       totalPctEl.innerText = `${isOverallPos ? '+' : ''}${formatPercent(stats.totalReturn.percent)} Total`;
       
-      // Dynamic Styling for Minimal Current Balance Card
       const currentBalCard = document.getElementById('card-current-bal');
       if (isOverallPos) {
         currentBalCard.classList.remove('border-gray-800', 'border-rose-500/50', 'shadow-rose-900/20');
         currentBalCard.classList.add('border-emerald-500/50', 'shadow-emerald-900/20');
-        totalPctEl.className = "bg-emerald-500/10 px-3 py-1.5 rounded-lg text-xs font-bold border border-emerald-500/30 text-emerald-400 shadow-inner";
+        totalPctEl.className = "bg-[#0B0F19] px-3 py-1.5 rounded-lg text-xs font-bold border border-emerald-500/50 text-emerald-400 shadow-inner";
       } else {
         currentBalCard.classList.remove('border-gray-800', 'border-emerald-500/50', 'shadow-emerald-900/20');
         currentBalCard.classList.add('border-rose-500/50', 'shadow-rose-900/20');
-        totalPctEl.className = "bg-rose-500/10 px-3 py-1.5 rounded-lg text-xs font-bold border border-rose-500/30 text-rose-400 shadow-inner";
+        totalPctEl.className = "bg-[#0B0F19] px-3 py-1.5 rounded-lg text-xs font-bold border border-rose-500/50 text-rose-400 shadow-inner";
       }
       
       document.getElementById('stat-avg-day').innerText = formatCurrency(stats.avgPerDay);
@@ -841,14 +844,14 @@
         <div class="min-w-[600px] relative" id="svg-wrapper">
           <svg viewBox="0 0 ${width} ${height}" class="w-full h-auto drop-shadow-2xl overflow-visible">
             <defs>
-              <linearGradient id="lineColor" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="lineColor" x1="0" y1="0" x2="0" y2="${height}" gradientUnits="userSpaceOnUse">
                  <stop offset="0" stop-color="#10b981" />
                  <stop offset="${zeroYRatio}" stop-color="#10b981" />
                  <stop offset="${zeroYRatio}" stop-color="#f43f5e" />
                  <stop offset="1" stop-color="#f43f5e" />
               </linearGradient>
 
-              <linearGradient id="gradientArea" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="gradientArea" x1="0" y1="0" x2="0" y2="${height}" gradientUnits="userSpaceOnUse">
                 <stop offset="0" stop-color="rgba(16, 185, 129, 0.4)" />
                 <stop offset="${zeroYRatio}" stop-color="rgba(16, 185, 129, 0.05)" />
                 <stop offset="${zeroYRatio}" stop-color="rgba(244, 63, 94, 0.05)" />
@@ -1013,12 +1016,24 @@
     // Profile Management UI Rendering
     function renderProfileSwitcher() {
       const switcher = document.getElementById('profile-switcher');
-      let html = `<option value="master_data">Master Account</option>`;
-      state.profiles.forEach(p => {
-         html += `<option value="${p.id}">${p.username}</option>`;
-      });
-      switcher.innerHTML = html;
-      switcher.value = state.activeProfileId;
+      if (state.profiles.length === 0) {
+          switcher.innerHTML = `<option value="master_data">No Profiles Created</option>`;
+          switcher.disabled = true;
+      } else {
+          let html = '';
+          state.profiles.forEach(p => {
+             html += `<option value="${p.id}">${p.username}</option>`;
+          });
+          switcher.innerHTML = html;
+          switcher.disabled = false;
+      }
+      
+      // Ensure the correct value is selected after rendering
+      if (state.activeProfileId && state.profiles.find(p => p.id === state.activeProfileId)) {
+          switcher.value = state.activeProfileId;
+      } else if (state.profiles.length === 0) {
+          switcher.value = 'master_data';
+      }
     }
 
     function renderProfilesList() {
@@ -1030,16 +1045,20 @@
       }
       
       list.innerHTML = state.profiles.map(p => `
-          <div class="flex justify-between items-center bg-[#0B0F19] p-3 rounded-xl border border-gray-800 shadow-inner">
+          <div class="flex justify-between items-center bg-[#0B0F19] p-3 rounded-xl border border-gray-800 shadow-inner group">
              <div>
                 <p class="text-sm font-bold text-white">${p.username}</p>
-                <p class="text-xs text-gray-500 font-mono mt-0.5">${p.password}</p>
+                <p class="text-xs text-gray-500 font-mono mt-0.5 flex items-center gap-1"><i data-lucide="key" class="w-3 h-3"></i> ${p.password}</p>
              </div>
-             <button data-id="${p.id}" class="btn-delete-profile text-rose-500 hover:text-rose-400 p-2 bg-rose-500/10 hover:bg-rose-500/20 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+             <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+               <button data-id="${p.id}" class="btn-edit-profile text-blue-400 hover:text-white p-2 bg-blue-500/10 hover:bg-blue-500/40 rounded-lg transition-colors" title="Edit"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+               <button data-id="${p.id}" class="btn-delete-profile text-rose-500 hover:text-white p-2 bg-rose-500/10 hover:bg-rose-500/40 rounded-lg transition-colors" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+             </div>
           </div>
       `).join('');
       lucide.createIcons();
       
+      // Delete Action
       document.querySelectorAll('.btn-delete-profile').forEach(btn => {
           btn.addEventListener('click', (e) => {
               if(!confirm('Delete this profile entirely? They will not be able to log in.')) return;
@@ -1048,8 +1067,45 @@
                  console.error(err);
                  alert("Could not delete profile. Check rules.");
               });
+              // Reset edit mode if they delete the currently editing user
+              if(document.getElementById('editing-profile-id').value === id) {
+                 resetProfileForm();
+              }
           });
       });
+
+      // Edit Action
+      document.querySelectorAll('.btn-edit-profile').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+              const id = e.currentTarget.dataset.id;
+              const profile = state.profiles.find(x => x.id === id);
+              if(!profile) return;
+              
+              document.getElementById('profile-form-title').innerText = `Edit Profile: ${profile.username}`;
+              document.getElementById('editing-profile-id').value = profile.id;
+              document.getElementById('new-profile-username').value = profile.username;
+              document.getElementById('new-profile-password').value = profile.password;
+              
+              const btnAdd = document.getElementById('btn-add-profile');
+              btnAdd.innerText = "Update Profile";
+              btnAdd.className = "flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg hover:shadow-blue-500/25";
+              
+              document.getElementById('btn-cancel-edit-profile').classList.remove('hidden');
+          });
+      });
+    }
+
+    function resetProfileForm() {
+       document.getElementById('profile-form-title').innerText = "Create New Profile";
+       document.getElementById('editing-profile-id').value = "";
+       document.getElementById('new-profile-username').value = "";
+       document.getElementById('new-profile-password').value = "";
+       
+       const btnAdd = document.getElementById('btn-add-profile');
+       btnAdd.innerText = "Add Profile";
+       btnAdd.className = "flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg hover:shadow-cyan-500/25";
+       
+       document.getElementById('btn-cancel-edit-profile').classList.add('hidden');
     }
 
     // --- Firebase Sync Logic ---
@@ -1095,6 +1151,19 @@
            onSnapshot(collection(db, 'profiles'), (snap) => {
                state.profiles = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                if (state.appUser?.role === 'master') {
+                   // Auto-switch from master fallback to first profile
+                   if (state.activeProfileId === 'master_data' && state.profiles.length > 0) {
+                       state.activeProfileId = state.profiles[0].id;
+                       fetchActiveProfileData();
+                   } else if (state.profiles.length > 0 && !state.profiles.find(p => p.id === state.activeProfileId)) {
+                       // Switch if active profile was deleted
+                       state.activeProfileId = state.profiles[0].id;
+                       fetchActiveProfileData();
+                   } else if (state.profiles.length === 0 && state.activeProfileId !== 'master_data') {
+                       // Fallback if all profiles deleted
+                       state.activeProfileId = 'master_data';
+                       fetchActiveProfileData();
+                   }
                    renderProfileSwitcher();
                    renderProfilesList();
                }
@@ -1192,7 +1261,7 @@
         err.classList.add('hidden');
         
         updateUI(); 
-        startLogoutTimer(); // Master handles ignoring timer internally
+        startLogoutTimer(); 
         fetchActiveProfileData(); 
       } else {
         const found = state.profiles.find(x => x.username.toLowerCase() === u.toLowerCase());
@@ -1211,7 +1280,7 @@
            
            lastReset = 0; 
            updateUI();
-           startLogoutTimer(); // Timer explicitly activates for view user
+           startLogoutTimer();
            fetchActiveProfileData();
         }
       }
@@ -1258,23 +1327,44 @@
       });
     });
 
-    document.getElementById('btn-manage-profiles').addEventListener('click', () => showModal('modal-profiles'));
+    // Profile Management Modals Handlers
+    document.getElementById('btn-manage-profiles').addEventListener('click', () => {
+        resetProfileForm();
+        showModal('modal-profiles');
+    });
     document.getElementById('btn-close-profiles').addEventListener('click', () => hideModal('modal-profiles'));
+    document.getElementById('btn-cancel-edit-profile').addEventListener('click', resetProfileForm);
     
     document.getElementById('btn-add-profile').addEventListener('click', () => {
         const u = document.getElementById('new-profile-username').value.trim();
         const p = document.getElementById('new-profile-password').value.trim();
+        const editId = document.getElementById('editing-profile-id').value;
+        
         if(!u || !p) return alert('Enter both username and password.');
         
-        if (state.profiles.some(x => x.username.toLowerCase() === u.toLowerCase()) || u.toLowerCase() === 'shubhammaster') {
-            return alert('This username already exists.');
-        }
+        if (editId) {
+            // Update mode
+            const existingWithSameName = state.profiles.find(x => x.username.toLowerCase() === u.toLowerCase() && x.id !== editId);
+            if (existingWithSameName || u.toLowerCase() === 'shubhammaster') {
+                return alert('This username is already taken by another profile.');
+            }
+            
+            const docRef = doc(db, 'profiles', editId);
+            setDoc(docRef, { username: u, password: p }, { merge: true }).then(() => {
+               resetProfileForm();
+            }).catch(console.error);
 
-        const newRef = doc(collection(db, 'profiles'));
-        setDoc(newRef, { username: u, password: p }).then(() => {
-           document.getElementById('new-profile-username').value = '';
-           document.getElementById('new-profile-password').value = '';
-        }).catch(console.error);
+        } else {
+            // Create mode
+            if (state.profiles.some(x => x.username.toLowerCase() === u.toLowerCase()) || u.toLowerCase() === 'shubhammaster') {
+                return alert('This username already exists.');
+            }
+
+            const newRef = doc(collection(db, 'profiles'));
+            setDoc(newRef, { username: u, password: p }).then(() => {
+               resetProfileForm();
+            }).catch(console.error);
+        }
     });
 
     document.getElementById('btn-close-day').addEventListener('click', () => hideModal('modal-day'));
