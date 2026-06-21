@@ -1037,6 +1037,9 @@
       document.querySelectorAll('.day-cell').forEach(cell => {
           // Hover interactions for ALL users
           cell.addEventListener('mouseenter', (e) => {
+             // Clear any pending hide timeouts to prevent flickering
+             if (window.calendarTooltipTimeout) clearTimeout(window.calendarTooltipTimeout);
+
              const el = e.currentTarget;
              const rect = el.getBoundingClientRect();
              const dateObj = new Date(el.dataset.date);
@@ -1067,7 +1070,8 @@
           
           cell.addEventListener('mouseleave', () => {
              tooltip.classList.add('opacity-0');
-             setTimeout(() => tooltip.classList.add('hidden'), 150);
+             // Assign to global timeout so it can be cleared if mouse re-enters another cell
+             window.calendarTooltipTimeout = setTimeout(() => tooltip.classList.add('hidden'), 150);
           });
 
           // Click interactions ONLY for master
@@ -1075,7 +1079,11 @@
             cell.addEventListener('click', (e) => {
               const el = e.currentTarget;
               if (el.dataset.weekend === 'true') return;
+              
+              if (window.calendarTooltipTimeout) clearTimeout(window.calendarTooltipTimeout);
               tooltip.classList.add('hidden'); // hide tooltip on click
+              tooltip.classList.add('opacity-0');
+              
               openDayModal(el.dataset.date);
             });
           }
