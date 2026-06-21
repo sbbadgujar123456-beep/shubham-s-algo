@@ -101,7 +101,7 @@
               </button>
             </div>
           </div>
-          <button id="btn-login-submit" type="submit" class="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3.5 rounded-xl transition-all mt-6 shadow-lg shadow-cyan-900/40 transform hover:-translate-y-0.5">
+          <button type="submit" class="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3.5 rounded-xl transition-all mt-6 shadow-lg shadow-cyan-900/40 transform hover:-translate-y-0.5">
             Secure Sign In
           </button>
         </form>
@@ -119,24 +119,23 @@
           <div class="p-2.5 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl shadow-lg shadow-cyan-500/20">
             <i data-lucide="line-chart" class="w-6 h-6 text-white"></i>
           </div>
-          <div class="flex items-center">
+          <div class="flex items-center gap-4">
             <div>
               <h1 class="text-xl font-bold text-white tracking-tight leading-none">Shubham's Algo</h1>
               <p class="text-xs text-cyan-400 mt-1 font-medium flex items-center">
-                Welcome <span id="nav-username" class="ml-1 mr-2"></span>
+                Welcome <span id="nav-username" class="ml-1"></span>
               </p>
             </div>
-
-            <!-- Profile Switcher (Master Only) -->
-            <select id="nav-profile-switcher" class="hidden ml-2 bg-[#0B0F19] text-cyan-400 text-xs font-bold rounded-lg px-2 py-1.5 outline-none border border-gray-800 hover:border-gray-600 transition-colors shadow-inner cursor-pointer">
-               <!-- Filled by JS -->
-            </select>
             
-            <!-- Dynamic 2-Minute Timer -->
-            <div id="nav-timer-container" class="hidden ml-4 px-2 py-1 bg-rose-500/10 border border-rose-500/30 rounded-lg flex items-center gap-1.5 text-rose-400 transition-colors">
+            <div id="nav-timer-container" class="hidden px-2 py-1 bg-rose-500/10 border border-rose-500/30 rounded-lg flex items-center gap-1.5 text-rose-400 transition-colors">
               <i data-lucide="timer" class="w-3.5 h-3.5"></i>
               <span id="nav-timer" class="text-xs font-bold font-mono tracking-widest">02:00</span>
             </div>
+
+            <!-- Profile Switcher (Master Only) -->
+            <select id="profile-switcher" class="hidden bg-[#1e293b] text-cyan-400 text-sm font-semibold rounded-lg px-3 py-1.5 border border-gray-700 outline-none hover:border-cyan-500 transition-colors cursor-pointer ml-2">
+               <!-- Filled via JS -->
+            </select>
           </div>
         </div>
         
@@ -153,7 +152,7 @@
           <div class="w-px h-8 bg-gray-800 hidden sm:block mx-2"></div>
 
           <button id="btn-manage-profiles" class="hidden p-2.5 text-gray-400 hover:text-cyan-400 transition-all rounded-xl hover:bg-gray-800 border border-transparent hover:border-gray-700" title="Manage Profiles">
-            <i data-lucide="users" class="w-5 h-5 transform transition-transform duration-300"></i>
+            <i data-lucide="users" class="w-5 h-5"></i>
           </button>
 
           <button id="btn-settings" class="hidden p-2.5 text-gray-400 hover:text-cyan-400 transition-all rounded-xl hover:bg-gray-800 border border-transparent hover:border-gray-700" title="Settings">
@@ -170,104 +169,96 @@
     <!-- Dashboard View -->
     <div id="view-dashboard" class="max-w-7xl w-full mx-auto px-4 py-8 space-y-6 flex-1">
       
-      <!-- Empty State Banner -->
-      <div id="no-profile-banner" class="hidden bg-rose-500/10 border border-rose-500/30 rounded-2xl p-6 text-center animate-fade-up">
-         <i data-lucide="alert-circle" class="w-10 h-10 text-rose-400 mx-auto mb-3"></i>
-         <h3 class="text-lg font-bold text-rose-400 mb-1">No Profiles Exist</h3>
-         <p class="text-sm text-gray-400">Please click the 'Users' icon in the top right to create your first trading profile.</p>
+      <!-- Top Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Starting Balance -->
+        <div class="bg-[#131B2C] rounded-3xl p-6 border border-gray-800 flex flex-col justify-between relative overflow-hidden group animate-fade-up">
+          <div class="absolute top-0 right-0 w-40 h-40 bg-cyan-500/5 rounded-full blur-3xl -mr-10 -mt-10 transition-transform duration-700 group-hover:scale-150 group-hover:bg-cyan-500/10"></div>
+          <div class="flex justify-between items-start relative z-10">
+            <p class="text-gray-400 font-semibold text-sm tracking-wide">Starting Balance</p>
+            <div class="p-2.5 bg-[#0B0F19] rounded-xl text-cyan-400 border border-gray-800 shadow-inner">
+              <i data-lucide="wallet" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div class="mt-8 relative z-10">
+            <h2 id="stat-start-bal" class="text-4xl font-bold text-white tracking-tight">₹0</h2>
+          </div>
+        </div>
+
+        <!-- Current Balance (Minimal) -->
+        <div id="card-current-bal" class="bg-[#131B2C] rounded-3xl p-6 shadow-2xl flex flex-col justify-between relative overflow-hidden group animate-fade-up delay-100 transform hover:-translate-y-1 transition-all duration-300 border-2 border-gray-800">
+          <div class="flex justify-between items-start relative z-10">
+            <p class="text-gray-400 font-semibold text-sm tracking-wide">Current Balance</p>
+            <div id="stat-total-percent" class="bg-[#0B0F19] px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-800 shadow-inner">
+              +0.00% Total
+            </div>
+          </div>
+          <div class="mt-8 relative z-10">
+            <h2 id="stat-current-bal" class="text-5xl font-extrabold text-white tracking-tight">₹0</h2>
+          </div>
+        </div>
+
+        <!-- Withdrawals -->
+        <div class="bg-[#131B2C] rounded-3xl p-6 border border-gray-800 flex flex-col justify-between relative overflow-hidden group animate-fade-up delay-200">
+          <div class="absolute top-0 right-0 w-40 h-40 bg-rose-500/5 rounded-full blur-3xl -mr-10 -mt-10 transition-transform duration-700 group-hover:scale-150 group-hover:bg-rose-500/10"></div>
+          <div class="flex justify-between items-start relative z-10">
+            <p class="text-gray-400 font-semibold text-sm tracking-wide">Total Withdrawals</p>
+            <div class="p-2.5 bg-[#0B0F19] rounded-xl text-rose-400 border border-gray-800 shadow-inner">
+              <i data-lucide="log-out" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <div class="mt-8 relative z-10">
+            <h2 id="stat-withdrawals" class="text-4xl font-bold text-white tracking-tight">₹0</h2>
+          </div>
+        </div>
       </div>
 
-      <div id="dashboard-content" class="space-y-6">
-        <!-- Top Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <!-- Starting Balance -->
-          <div class="bg-[#131B2C] rounded-3xl p-6 border border-gray-800 flex flex-col justify-between relative overflow-hidden group animate-fade-up">
-            <div class="absolute top-0 right-0 w-40 h-40 bg-cyan-500/5 rounded-full blur-3xl -mr-10 -mt-10 transition-transform duration-700 group-hover:scale-150 group-hover:bg-cyan-500/10"></div>
-            <div class="flex justify-between items-start relative z-10">
-              <p class="text-gray-400 font-semibold text-sm tracking-wide">Starting Balance</p>
-              <div class="p-2.5 bg-[#0B0F19] rounded-xl text-cyan-400 border border-gray-800 shadow-inner">
-                <i data-lucide="wallet" class="w-5 h-5"></i>
-              </div>
-            </div>
-            <div class="mt-8 relative z-10">
-              <h2 id="stat-start-bal" class="text-4xl font-bold text-white tracking-tight">₹0</h2>
-            </div>
-          </div>
-
-          <!-- Current Balance -->
-          <div id="card-current-bal" class="bg-[#131B2C] rounded-3xl p-6 shadow-2xl flex flex-col justify-between relative overflow-hidden group animate-fade-up delay-100 transform hover:-translate-y-1 transition-all duration-300 border-2 border-gray-800">
-            <div class="flex justify-between items-start relative z-10">
-              <p class="text-gray-400 font-semibold text-sm tracking-wide">Current Balance</p>
-              <div id="stat-total-percent" class="bg-[#0B0F19] px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-800 shadow-inner">
-                +0.00% Total
-              </div>
-            </div>
-            <div class="mt-8 relative z-10">
-              <h2 id="stat-current-bal" class="text-5xl font-extrabold text-white tracking-tight">₹0</h2>
-            </div>
-          </div>
-
-          <!-- Withdrawals -->
-          <div class="bg-[#131B2C] rounded-3xl p-6 border border-gray-800 flex flex-col justify-between relative overflow-hidden group animate-fade-up delay-200">
-            <div class="absolute top-0 right-0 w-40 h-40 bg-rose-500/5 rounded-full blur-3xl -mr-10 -mt-10 transition-transform duration-700 group-hover:scale-150 group-hover:bg-rose-500/10"></div>
-            <div class="flex justify-between items-start relative z-10">
-              <p class="text-gray-400 font-semibold text-sm tracking-wide">Total Withdrawals</p>
-              <div class="p-2.5 bg-[#0B0F19] rounded-xl text-rose-400 border border-gray-800 shadow-inner">
-                <i data-lucide="log-out" class="w-5 h-5"></i>
-              </div>
-            </div>
-            <div class="mt-8 relative z-10">
-              <h2 id="stat-withdrawals" class="text-4xl font-bold text-white tracking-tight">₹0</h2>
-            </div>
-          </div>
-        </div>
-
-        <!-- Chart Section -->
-        <div class="bg-[#131B2C] rounded-3xl border border-gray-800 p-6 shadow-xl relative overflow-hidden animate-fade-up delay-300 group">
-          <div class="absolute inset-0 bg-gradient-to-b from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-          <div class="flex justify-between items-start relative z-10 mb-2">
-            <h3 class="text-sm font-bold text-gray-300 flex items-center gap-3 tracking-wide">
-              <div class="p-1.5 bg-gray-800 rounded-md border border-gray-700"><i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i></div>
-              Total Return
-            </h3>
-            <div id="chart-badge-container"></div>
-          </div>
-          <div id="chart-container" class="w-full relative z-10"></div>
-        </div>
-
-        <!-- Return Metrics -->
-        <div class="bg-[#131B2C] rounded-3xl border border-gray-800 p-6 shadow-xl animate-fade-up delay-300">
-          <h3 class="text-sm font-bold text-gray-300 mb-6 flex items-center gap-3 tracking-wide">
-            <div class="p-1.5 bg-gray-800 rounded-md border border-gray-700"><i data-lucide="bar-chart-2" class="w-4 h-4 text-cyan-400"></i></div>
-            Return Analytics (PnL Based)
+      <!-- Chart Section -->
+      <div class="bg-[#131B2C] rounded-3xl border border-gray-800 p-6 shadow-xl relative overflow-hidden animate-fade-up delay-300 group">
+        <div class="absolute inset-0 bg-gradient-to-b from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+        <div class="flex justify-between items-start relative z-10 mb-2">
+          <h3 class="text-sm font-bold text-gray-300 flex items-center gap-3 tracking-wide">
+            <div class="p-1.5 bg-gray-800 rounded-md border border-gray-700"><i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i></div>
+            Cumulative Return Curve (Amount)
           </h3>
-          <div class="grid grid-cols-2 md:grid-cols-5 gap-4" id="returns-grid">
-            <!-- Filled by JS -->
+          <div id="chart-badge-container"></div>
+        </div>
+        <div id="chart-container" class="w-full relative z-10"></div>
+      </div>
+
+      <!-- Return Metrics -->
+      <div class="bg-[#131B2C] rounded-3xl border border-gray-800 p-6 shadow-xl animate-fade-up delay-300">
+        <h3 class="text-sm font-bold text-gray-300 mb-6 flex items-center gap-3 tracking-wide">
+          <div class="p-1.5 bg-gray-800 rounded-md border border-gray-700"><i data-lucide="bar-chart-2" class="w-4 h-4 text-cyan-400"></i></div>
+          Return Analytics (PnL Based)
+        </h3>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4" id="returns-grid">
+          <!-- Filled by JS -->
+        </div>
+      </div>
+
+      <!-- Averages -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-fade-up delay-300">
+        <div class="bg-[#131B2C] rounded-3xl p-6 border border-gray-800 flex items-center gap-6 shadow-lg hover:border-emerald-500/30 transition-colors duration-300">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 flex items-center justify-center text-emerald-400 border border-emerald-500/20 shadow-inner">
+            <i data-lucide="dollar-sign" class="w-8 h-8"></i>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 uppercase tracking-widest font-bold mb-1.5">Avg Per Day</p>
+            <p id="stat-avg-day" class="text-3xl font-extrabold text-white tracking-tight">₹0</p>
           </div>
         </div>
-
-        <!-- Averages -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-fade-up delay-300">
-          <div class="bg-[#131B2C] rounded-3xl p-6 border border-gray-800 flex items-center gap-6 shadow-lg hover:border-emerald-500/30 transition-colors duration-300">
-            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 flex items-center justify-center text-emerald-400 border border-emerald-500/20 shadow-inner">
-              <i data-lucide="dollar-sign" class="w-8 h-8"></i>
-            </div>
-            <div>
-              <p class="text-xs text-gray-400 uppercase tracking-widest font-bold mb-1.5">Avg Per Day</p>
-              <p id="stat-avg-day" class="text-3xl font-extrabold text-white tracking-tight">₹0</p>
-            </div>
+        <div class="bg-[#131B2C] rounded-3xl p-6 border border-gray-800 flex items-center gap-6 shadow-lg hover:border-blue-500/30 transition-colors duration-300">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-600/10 flex items-center justify-center text-blue-400 border border-blue-500/20 shadow-inner">
+            <i data-lucide="calendar-days" class="w-8 h-8"></i>
           </div>
-          <div class="bg-[#131B2C] rounded-3xl p-6 border border-gray-800 flex items-center gap-6 shadow-lg hover:border-blue-500/30 transition-colors duration-300">
-            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-600/10 flex items-center justify-center text-blue-400 border border-blue-500/20 shadow-inner">
-              <i data-lucide="calendar-days" class="w-8 h-8"></i>
-            </div>
-            <div>
-              <p class="text-xs text-gray-400 uppercase tracking-widest font-bold mb-1.5">Avg Per Month</p>
-              <p id="stat-avg-month" class="text-3xl font-extrabold text-white tracking-tight">₹0</p>
-            </div>
+          <div>
+            <p class="text-xs text-gray-400 uppercase tracking-widest font-bold mb-1.5">Avg Per Month</p>
+            <p id="stat-avg-month" class="text-3xl font-extrabold text-white tracking-tight">₹0</p>
           </div>
         </div>
       </div>
+
     </div>
 
     <!-- Calendar View -->
@@ -275,7 +266,7 @@
       <div class="bg-[#131B2C] border border-gray-800 rounded-3xl p-5 flex items-center justify-between shadow-xl animate-fade-up">
         <h2 class="text-xl font-bold text-white flex items-center gap-3 tracking-wide">
           <div class="p-2 bg-gray-800 rounded-xl border border-gray-700"><i data-lucide="grid" class="w-5 h-5 text-cyan-400"></i></div>
-          Yearly Calender
+          Yearly Master Grid
         </h2>
         <div class="flex items-center gap-4 bg-[#0B0F19] rounded-xl p-1.5 border border-gray-800 shadow-inner">
           <button id="cal-prev" class="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors">
@@ -294,32 +285,33 @@
     </div>
   </div>
 
-  <!-- Manage Profiles Modal -->
-  <div id="modal-manage-profiles" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md transition-opacity duration-300">
-    <div class="bg-[#131B2C] border border-gray-700 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-300" id="modal-manage-profiles-content">
+  <!-- Modals -->
+  
+  <!-- Manage Profiles Modal (Master Only) -->
+  <div id="modal-profiles" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md transition-opacity duration-300">
+    <div class="bg-[#131B2C] border border-gray-700 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-300" id="modal-profiles-content">
       <div class="px-6 py-5 border-b border-gray-800 flex justify-between items-center bg-[#0B0F19]/50">
         <h3 class="font-bold text-white flex items-center gap-3 text-lg">
           <i data-lucide="users" class="w-5 h-5 text-cyan-500"></i> Manage Profiles
         </h3>
-        <button id="btn-close-manage-profiles" class="text-gray-500 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-full p-1.5 transition-colors">
+        <button id="btn-close-profiles" class="text-gray-500 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-full p-1.5 transition-colors">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
-      <div class="p-6">
-         <!-- Existing Profiles List -->
-         <div id="profiles-list" class="space-y-3 max-h-[40vh] overflow-y-auto custom-scrollbar pr-2 mb-6">
-            <!-- Populated by JS -->
-         </div>
-         
-         <!-- Add New Profile Form -->
-         <div class="pt-5 border-t border-gray-800">
-            <h4 class="text-sm font-semibold text-gray-400 mb-3 tracking-wide">Create New Profile</h4>
-            <div class="flex gap-3">
-               <input type="text" id="new-prof-u" placeholder="Username" class="w-full px-4 py-2.5 bg-[#0B0F19] border border-gray-700 text-white rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm shadow-inner transition-colors">
-               <input type="text" id="new-prof-p" placeholder="Password" class="w-full px-4 py-2.5 bg-[#0B0F19] border border-gray-700 text-white rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm shadow-inner transition-colors">
-               <button id="btn-add-profile" class="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-xl transition-all shadow-lg shadow-emerald-900/40 text-sm whitespace-nowrap">Create</button>
-            </div>
-         </div>
+      <div class="p-6 flex flex-col md:flex-row gap-8">
+        <div class="flex-1 space-y-4">
+           <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Create New Profile</h4>
+           <input type="text" id="new-profile-username" placeholder="Username (e.g. AshishModi)" class="w-full px-4 py-3 bg-[#0B0F19] border border-gray-700 text-white rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none">
+           <input type="text" id="new-profile-password" placeholder="Password" class="w-full px-4 py-3 bg-[#0B0F19] border border-gray-700 text-white rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none">
+           <button id="btn-add-profile" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg hover:shadow-cyan-500/25">Add Profile</button>
+        </div>
+        <div class="w-px bg-gray-800 hidden md:block"></div>
+        <div class="flex-1 flex flex-col min-h-0">
+           <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Existing Profiles</h4>
+           <div id="profiles-list" class="space-y-3 overflow-y-auto max-h-[300px] custom-scrollbar pr-2">
+             <!-- Injected via JS -->
+           </div>
+        </div>
       </div>
     </div>
   </div>
@@ -329,7 +321,7 @@
     <div class="bg-[#131B2C] border border-gray-700 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-300" id="modal-settings-content">
       <div class="px-6 py-5 border-b border-gray-800 flex justify-between items-center bg-[#0B0F19]/50">
         <h3 class="font-bold text-white flex items-center gap-3 text-lg">
-          <i data-lucide="settings" class="w-5 h-5 text-cyan-500"></i> Profile Settings
+          <i data-lucide="settings" class="w-5 h-5 text-cyan-500"></i> Global Settings
         </h3>
         <button id="btn-close-settings" class="text-gray-500 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-full p-1.5 transition-colors">
           <i data-lucide="x" class="w-4 h-4"></i>
@@ -349,7 +341,7 @@
             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold group-focus-within:text-cyan-500 transition-colors">₹</span>
             <input type="number" id="input-withdrawals" class="w-full pl-9 pr-4 py-3 bg-[#0B0F19] border border-gray-700 text-white rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all font-medium text-lg shadow-inner">
           </div>
-          <p class="text-xs text-gray-500 mt-3 flex items-center gap-1.5"><i data-lucide="info" class="w-3 h-3"></i> Applies to currently selected profile only.</p>
+          <p class="text-xs text-gray-500 mt-3 flex items-center gap-1.5"><i data-lucide="info" class="w-3 h-3"></i> Adjusting reflects immediately in your current balance calculations.</p>
         </div>
       </div>
       <div class="px-6 py-5 bg-[#0B0F19]/80 flex justify-end gap-3 border-t border-gray-800">
@@ -405,9 +397,8 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, query, where, getDocs, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // --- Configuration & Initialization ---
     const firebaseConfig = {
       apiKey: "AIzaSyC0BCGWxjU5ZSZkWbwuMUhikx1VPTn9IcQ",
       authDomain: "algo-managment.firebaseapp.com",
@@ -429,15 +420,21 @@
       firebaseUser: null,
       appUser: JSON.parse(localStorage.getItem(USER_KEY)) || null, 
       activeTab: sessionStorage.getItem(TAB_KEY) || 'dashboard',   
-      profiles: [],
-      activeProfileId: null,
-      config: { startingBalance: 0, withdrawals: 0 },
+      config: { startingBalance: 100000, withdrawals: 0 },
       pnlEntries: [],
       calendarYear: new Date().getFullYear(),
       selectedDateStr: null,
-      unsubs: [],
-      pnlUnsub: null
+      dataUnsubs: [],
+      
+      // Multi-Profile State
+      profiles: [],
+      activeProfileId: 'master_data' 
     };
+
+    // Restore activeProfileId if already logged in as specific user
+    if (state.appUser && state.appUser.role === 'view') {
+        state.activeProfileId = state.appUser.profileId;
+    }
 
     // --- Utility Functions ---
     const formatCurrency = (amount) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount || 0);
@@ -451,22 +448,39 @@
       return `${year}-${month}-${day}`;
     };
 
-    // --- Auto Logout Timer System (Strict 2-Minute Session) ---
+    // Database Reference Helpers (Preserves old data for master, creates isolated docs for sub-profiles)
+    function getConfigRef() {
+        if (state.activeProfileId === 'master_data') return doc(db, 'algo_config', 'main');
+        return doc(db, 'profiles', state.activeProfileId, 'data', 'config');
+    }
+    function getPnlCollectionRef() {
+        if (state.activeProfileId === 'master_data') return collection(db, 'pnl_entries');
+        return collection(db, 'profiles', state.activeProfileId, 'pnl_entries');
+    }
+    function getPnlDocRef(dateStr) {
+        if (state.activeProfileId === 'master_data') return doc(db, 'pnl_entries', dateStr);
+        return doc(db, 'profiles', state.activeProfileId, 'pnl_entries', dateStr);
+    }
+
+    // --- Auto Logout Timer System ---
     const TIMER_KEY = 'shubham_algo_timer_target';
     const ACTIVITY_EVENTS = ['mousedown', 'keydown', 'touchstart', 'scroll', 'click']; 
     let logoutTimerInterval;
     let lastReset = 0;
 
     function resetTimer() {
+      // MASTER is immune to timer
       if (!state.appUser || state.appUser.role === 'master') return;
       
       const now = Date.now();
       if (now - lastReset > 2000) {
         const target = now + 120 * 1000;
         localStorage.setItem(TIMER_KEY, target.toString());
+        
         const targetSaved = parseInt(localStorage.getItem(TIMER_KEY) || '0', 10);
         const timeLeft = Math.round((targetSaved - Date.now()) / 1000);
         updateTimerUI(timeLeft);
+        
         lastReset = now;
       }
     }
@@ -493,11 +507,12 @@
          lastReset = 0; 
          resetTimer(); 
       }
+      
       ACTIVITY_EVENTS.forEach(e => window.addEventListener(e, resetTimer, { passive: true }));
       
       clearInterval(logoutTimerInterval);
       logoutTimerInterval = setInterval(() => {
-        if (!state.appUser) return;
+        if (!state.appUser || state.appUser.role === 'master') return;
         
         const target = parseInt(localStorage.getItem(TIMER_KEY) || '0', 10);
         const timeLeft = Math.round((target - Date.now()) / 1000);
@@ -519,12 +534,8 @@
       state.appUser = null;
       localStorage.removeItem(USER_KEY);
       localStorage.removeItem(TIMER_KEY);
-      state.unsubs.forEach(u => u());
-      if (state.pnlUnsub) state.pnlUnsub();
-      state.unsubs = [];
-      state.profiles = [];
-      state.activeProfileId = null;
-      state.pnlEntries = [];
+      state.dataUnsubs.forEach(u => u());
+      state.dataUnsubs = [];
       stopLogoutTimer();
       updateUI();
     }
@@ -544,49 +555,28 @@
       document.getElementById('loading-screen').classList.add('hidden');
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('main-app').classList.remove('hidden');
-      
-      if (state.appUser.role === 'master') {
-         document.getElementById('nav-timer-container').classList.add('hidden');
-      } else {
-         document.getElementById('nav-timer-container').classList.remove('hidden');
-      }
-      
       document.getElementById('main-app').style.display = 'flex';
 
       document.getElementById('nav-username').innerText = state.appUser.username;
       
       const btnSettings = document.getElementById('btn-settings');
       const btnManageProfiles = document.getElementById('btn-manage-profiles');
-      const navProfileSwitcher = document.getElementById('nav-profile-switcher');
-      
+      const switcher = document.getElementById('profile-switcher');
+      const timerContainer = document.getElementById('nav-timer-container');
+
+      // Master vs Sub-profile UI logic
       if (state.appUser.role === 'master') {
          btnSettings.classList.remove('hidden');
          btnManageProfiles.classList.remove('hidden');
-         navProfileSwitcher.classList.remove('hidden');
-         
-         // Update Profile Switcher Options
-         if(state.profiles.length > 0) {
-            navProfileSwitcher.innerHTML = state.profiles.map(p => `<option value="${p.id}" class="bg-gray-900">${p.username}</option>`).join('');
-            if(state.activeProfileId) navProfileSwitcher.value = state.activeProfileId;
-         } else {
-            navProfileSwitcher.innerHTML = `<option value="">No Profiles</option>`;
-         }
+         switcher.classList.remove('hidden');
+         timerContainer.classList.add('hidden'); // Disable timer visually for master
       } else {
          btnSettings.classList.add('hidden');
          btnManageProfiles.classList.add('hidden');
-         navProfileSwitcher.classList.add('hidden');
+         switcher.classList.add('hidden');
+         timerContainer.classList.remove('hidden');
       }
 
-      // Check if we have an active profile to show data for
-      if (!state.activeProfileId) {
-         document.getElementById('no-profile-banner').classList.remove('hidden');
-         document.getElementById('dashboard-content').classList.add('hidden');
-      } else {
-         document.getElementById('no-profile-banner').classList.add('hidden');
-         document.getElementById('dashboard-content').classList.remove('hidden');
-      }
-
-      // Tabs Logic
       const tabDash = document.getElementById('tab-dashboard');
       const tabCal = document.getElementById('tab-calendar');
       const viewDash = document.getElementById('view-dashboard');
@@ -597,13 +587,13 @@
         tabCal.className = "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all text-gray-400 hover:text-gray-200 hover:bg-gray-800/50";
         viewDash.classList.remove('hidden');
         viewCal.classList.add('hidden');
-        if(state.activeProfileId) renderDashboard();
+        renderDashboard();
       } else {
         tabCal.className = "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-[#1e293b] text-cyan-400 shadow-sm";
         tabDash.className = "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all text-gray-400 hover:text-gray-200 hover:bg-gray-800/50";
         viewCal.classList.remove('hidden');
         viewDash.classList.add('hidden');
-        if(state.activeProfileId) renderCalendar();
+        renderCalendar();
       }
     }
 
@@ -671,16 +661,16 @@
       const isOverallPos = stats.totalReturn.percent >= 0;
       totalPctEl.innerText = `${isOverallPos ? '+' : ''}${formatPercent(stats.totalReturn.percent)} Total`;
       
-      // Dynamic Styling for Current Balance Card
+      // Dynamic Styling for Minimal Current Balance Card
       const currentBalCard = document.getElementById('card-current-bal');
       if (isOverallPos) {
         currentBalCard.classList.remove('border-gray-800', 'border-rose-500/50', 'shadow-rose-900/20');
         currentBalCard.classList.add('border-emerald-500/50', 'shadow-emerald-900/20');
-        totalPctEl.className = "bg-[#0B0F19] px-3 py-1.5 rounded-lg text-xs font-bold border border-emerald-500/30 text-emerald-400 shadow-inner";
+        totalPctEl.className = "bg-emerald-500/10 px-3 py-1.5 rounded-lg text-xs font-bold border border-emerald-500/30 text-emerald-400 shadow-inner";
       } else {
         currentBalCard.classList.remove('border-gray-800', 'border-emerald-500/50', 'shadow-emerald-900/20');
         currentBalCard.classList.add('border-rose-500/50', 'shadow-rose-900/20');
-        totalPctEl.className = "bg-[#0B0F19] px-3 py-1.5 rounded-lg text-xs font-bold border border-rose-500/30 text-rose-400 shadow-inner";
+        totalPctEl.className = "bg-rose-500/10 px-3 py-1.5 rounded-lg text-xs font-bold border border-rose-500/30 text-rose-400 shadow-inner";
       }
       
       document.getElementById('stat-avg-day').innerText = formatCurrency(stats.avgPerDay);
@@ -748,10 +738,10 @@
 
       const width = 800;
       const height = 300;
-      const padL = 70; // Room for Y-axis labels
-      const padR = 30; // Room on right
-      const padT = 40; // Room on top
-      const padB = 40; // Room for X-axis dates
+      const padL = 70; 
+      const padR = 30; 
+      const padT = 40; 
+      const padB = 40; 
       
       const innerWidth = width - padL - padR;
       const innerHeight = height - padT - padB;
@@ -776,7 +766,6 @@
       const currentValFormatted = formatCurrency(dataPoints[dataPoints.length - 1].value);
       const isOverallPos = dataPoints[dataPoints.length - 1].value >= 0;
 
-      // Draw Badge into separate container outside the SVG completely
       badgeContainer.innerHTML = `
         <div class="text-right animate-fade-up delay-300 bg-[#0B0F19] p-3 rounded-xl border border-gray-800 shadow-xl">
           <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Current Cumulative</p>
@@ -786,7 +775,6 @@
         </div>
       `;
 
-      // --- Axes Generation ---
       let yLabelsHtml = '';
       const yTicks = 4;
       for (let i = 0; i <= yTicks; i++) {
@@ -814,7 +802,6 @@
             </text>
          `;
       }
-      // Explicitly draw the last date
       const lastDateObj = new Date(dataPoints[dataPoints.length - 1].date);
       xLabelsHtml += `
          <text x="${scaleX(dataPoints.length - 1)}" y="${height - 10}" fill="#64748b" font-size="11" font-weight="600" text-anchor="middle">
@@ -822,7 +809,6 @@
          </text>
       `;
 
-      // --- Interactions ---
       let interactionHTML = '';
       const bandWidth = innerWidth / Math.max(1, dataPoints.length - 1);
       
@@ -848,7 +834,6 @@
 
       const tooltipHTML = `
         <div id="chart-tooltip" class="absolute hidden bg-[#0B0F19]/95 border border-gray-700 text-white px-4 py-3 rounded-2xl shadow-2xl z-50 pointer-events-none backdrop-blur-xl whitespace-nowrap transition-transform duration-100 ease-out">
-           <!-- Dynamic content injected here -->
         </div>
       `;
 
@@ -856,14 +841,14 @@
         <div class="min-w-[600px] relative" id="svg-wrapper">
           <svg viewBox="0 0 ${width} ${height}" class="w-full h-auto drop-shadow-2xl overflow-visible">
             <defs>
-              <linearGradient id="lineColor" x1="0" y1="0" x2="0" y2="${height}" gradientUnits="userSpaceOnUse">
+              <linearGradient id="lineColor" x1="0" y1="0" x2="0" y2="1">
                  <stop offset="0" stop-color="#10b981" />
                  <stop offset="${zeroYRatio}" stop-color="#10b981" />
                  <stop offset="${zeroYRatio}" stop-color="#f43f5e" />
                  <stop offset="1" stop-color="#f43f5e" />
               </linearGradient>
 
-              <linearGradient id="gradientArea" x1="0" y1="0" x2="0" y2="${height}" gradientUnits="userSpaceOnUse">
+              <linearGradient id="gradientArea" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0" stop-color="rgba(16, 185, 129, 0.4)" />
                 <stop offset="${zeroYRatio}" stop-color="rgba(16, 185, 129, 0.05)" />
                 <stop offset="${zeroYRatio}" stop-color="rgba(244, 63, 94, 0.05)" />
@@ -876,11 +861,9 @@
               </filter>
             </defs>
             
-            <!-- Axes Elements -->
             ${yLabelsHtml}
             ${xLabelsHtml}
             
-            <!-- Zero Marker Line -->
             <line x1="${padL}" y1="${zeroY}" x2="${width - padR}" y2="${zeroY}" stroke="#64748b" stroke-width="1.5" stroke-dasharray="6 6" class="opacity-60" />
             <text x="${padL - 10}" y="${zeroY}" fill="#94a3b8" font-size="11" font-weight="800" text-anchor="end" alignment-baseline="middle">0</text>
             
@@ -889,7 +872,6 @@
             
             ${interactionHTML}
             
-            <!-- End Dot -->
             <circle cx="${scaleX(dataPoints.length - 1)}" cy="${scaleY(dataPoints[dataPoints.length - 1].value)}" r="6" fill="#0B0F19" stroke="${isOverallPos ? '#10b981' : '#f43f5e'}" stroke-width="3" class="animate-fade-up delay-300 pointer-events-none" />
           </svg>
           
@@ -900,7 +882,6 @@
       container.innerHTML = '';
       container.appendChild(innerContainer);
 
-      // Attach Interactions
       const tooltip = innerContainer.querySelector('#chart-tooltip');
       innerContainer.querySelectorAll('.chart-hover-band').forEach((band, index) => {
         band.addEventListener('mouseenter', (e) => {
@@ -929,11 +910,10 @@
            tooltip.style.left = cx + 'px';
            tooltip.style.top = cy + 'px';
            
-           // Determine if tooltip should show above or below based on cy position
            if (cy < 100) {
-             tooltip.style.transform = 'translate(-50%, 15px)'; // Show below
+             tooltip.style.transform = 'translate(-50%, 15px)'; 
            } else {
-             tooltip.style.transform = 'translate(-50%, -110%)'; // Show above
+             tooltip.style.transform = 'translate(-50%, -110%)';
            }
            
            tooltip.classList.remove('hidden');
@@ -1018,6 +998,7 @@
 
       grid.innerHTML = html;
 
+      // Re-bind Calendar day click events
       if (state.appUser?.role === 'master') {
         document.querySelectorAll('.day-cell').forEach(cell => {
           cell.addEventListener('click', (e) => {
@@ -1029,102 +1010,74 @@
       }
     }
 
-    function renderProfilesModal() {
-       const list = document.getElementById('profiles-list');
-       if (state.profiles.length === 0) {
-          list.innerHTML = `<p class="text-sm text-gray-500 text-center py-4">No custom profiles created yet.</p>`;
-       } else {
-          list.innerHTML = state.profiles.map(p => `
-             <div class="flex flex-col sm:flex-row items-center gap-2 p-3 bg-gray-800/30 border border-gray-800 hover:border-gray-700 transition-colors rounded-xl shadow-inner group">
-                <input type="text" class="prof-edit-u flex-1 bg-[#0B0F19] text-sm w-full px-3 py-2 rounded-lg border border-gray-700 focus:border-cyan-500 outline-none text-white" value="${p.username}" data-id="${p.id}">
-                <input type="text" class="prof-edit-p flex-1 bg-[#0B0F19] text-sm w-full px-3 py-2 rounded-lg border border-gray-700 focus:border-cyan-500 outline-none text-white" value="${p.password}" data-id="${p.id}">
-                <div class="flex gap-2 w-full sm:w-auto">
-                   <button class="btn-save-prof flex-1 sm:flex-none px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg transition-colors border border-emerald-500/30" data-id="${p.id}" title="Save Changes"><i data-lucide="check" class="w-4 h-4 mx-auto"></i></button>
-                   <button class="btn-del-prof flex-1 sm:flex-none px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-colors border border-rose-500/30" data-id="${p.id}" title="Delete Profile"><i data-lucide="trash-2" class="w-4 h-4 mx-auto"></i></button>
-                </div>
+    // Profile Management UI Rendering
+    function renderProfileSwitcher() {
+      const switcher = document.getElementById('profile-switcher');
+      let html = `<option value="master_data">Master Account</option>`;
+      state.profiles.forEach(p => {
+         html += `<option value="${p.id}">${p.username}</option>`;
+      });
+      switcher.innerHTML = html;
+      switcher.value = state.activeProfileId;
+    }
+
+    function renderProfilesList() {
+      const list = document.getElementById('profiles-list');
+      if(!list) return;
+      if (state.profiles.length === 0) {
+         list.innerHTML = `<p class="text-sm text-gray-500 italic py-4">No sub-profiles exist yet.</p>`;
+         return;
+      }
+      
+      list.innerHTML = state.profiles.map(p => `
+          <div class="flex justify-between items-center bg-[#0B0F19] p-3 rounded-xl border border-gray-800 shadow-inner">
+             <div>
+                <p class="text-sm font-bold text-white">${p.username}</p>
+                <p class="text-xs text-gray-500 font-mono mt-0.5">${p.password}</p>
              </div>
-          `).join('');
-       }
-       lucide.createIcons();
+             <button data-id="${p.id}" class="btn-delete-profile text-rose-500 hover:text-rose-400 p-2 bg-rose-500/10 hover:bg-rose-500/20 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+          </div>
+      `).join('');
+      lucide.createIcons();
+      
+      document.querySelectorAll('.btn-delete-profile').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+              if(!confirm('Delete this profile entirely? They will not be able to log in.')) return;
+              const id = e.currentTarget.dataset.id;
+              deleteDoc(doc(db, 'profiles', id)).catch(err => {
+                 console.error(err);
+                 alert("Could not delete profile. Check rules.");
+              });
+          });
+      });
     }
 
-    // --- Firebase Logic ---
-    function loadProfilePnL(profileId) {
-       if (state.pnlUnsub) state.pnlUnsub();
-       state.pnlEntries = []; // Clear old
-       
-       if (!profileId) {
-          updateUI();
-          return;
-       }
-
-       const entriesRef = collection(db, 'profiles', profileId, 'pnl_entries');
-       state.pnlUnsub = onSnapshot(entriesRef, (snapshot) => {
-          state.pnlEntries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          updateUI();
-       }, err => {
-          console.error("Entries fetch error:", err);
-       });
-    }
-
-    async function initFirebaseData() {
-      state.unsubs.forEach(unsub => unsub());
-      state.unsubs = [];
+    // --- Firebase Sync Logic ---
+    function fetchActiveProfileData() {
+      state.dataUnsubs.forEach(u => u());
+      state.dataUnsubs = [];
 
       if (!state.firebaseUser || !state.appUser) return;
 
-      if (state.appUser.role === 'master') {
-         // Master sees all profiles
-         const profRef = collection(db, 'profiles');
-         const unsubProf = onSnapshot(profRef, (snapshot) => {
-            state.profiles = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            
-            if (!state.activeProfileId && state.profiles.length > 0) {
-               state.activeProfileId = state.profiles[0].id;
-               loadProfilePnL(state.activeProfileId);
-            } else if (state.profiles.length === 0) {
-               state.activeProfileId = null;
-               state.config = { startingBalance: 0, withdrawals: 0 };
-               loadProfilePnL(null);
-            }
-            
-            // Check if active profile still exists
-            if (state.activeProfileId) {
-               const exists = state.profiles.find(p => p.id === state.activeProfileId);
-               if(!exists) {
-                  state.activeProfileId = state.profiles.length > 0 ? state.profiles[0].id : null;
-                  loadProfilePnL(state.activeProfileId);
-               } else {
-                  state.config = { startingBalance: exists.startingBalance || 0, withdrawals: exists.withdrawals || 0 };
-               }
-            }
-            
-            updateUI();
-            if(!document.getElementById('modal-manage-profiles').classList.contains('hidden')) {
-               renderProfilesModal();
-            }
-         });
-         state.unsubs.push(unsubProf);
+      const unsubConfig = onSnapshot(getConfigRef(), (docSnap) => {
+        if (docSnap.exists()) {
+          state.config = docSnap.data();
+        } else {
+          state.config = { startingBalance: 100000, withdrawals: 0 };
+        }
+        updateUI();
+      }, err => {
+         console.error("Config fetch error:", err);
+      });
 
-      } else {
-         // Viewers only see their own profile
-         state.activeProfileId = state.appUser.profileId;
-         const profDoc = doc(db, 'profiles', state.activeProfileId);
-         
-         const unsubProf = onSnapshot(profDoc, d => {
-            if(d.exists()) {
-               const data = d.data();
-               state.config = { startingBalance: data.startingBalance || 0, withdrawals: data.withdrawals || 0 };
-               updateUI();
-            } else {
-               // Profile was deleted by Master while they were logged in
-               handleLogout();
-               alert("Your profile has been removed by the Admin.");
-            }
-         });
-         state.unsubs.push(unsubProf);
-         loadProfilePnL(state.activeProfileId);
-      }
+      const unsubEntries = onSnapshot(getPnlCollectionRef(), (snapshot) => {
+        state.pnlEntries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        updateUI();
+      }, err => {
+         console.error("Entries fetch error:", err);
+      });
+
+      state.dataUnsubs.push(unsubConfig, unsubEntries);
     }
 
     async function initializeAuth() {
@@ -1136,15 +1089,27 @@
 
       onAuthStateChanged(auth, (user) => {
         state.firebaseUser = user;
-        if(user && state.appUser) {
-          startLogoutTimer();
-          initFirebaseData();
+        
+        if (user) {
+           // Continually sync all sub-profiles available (for master)
+           onSnapshot(collection(db, 'profiles'), (snap) => {
+               state.profiles = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+               if (state.appUser?.role === 'master') {
+                   renderProfileSwitcher();
+                   renderProfilesList();
+               }
+           });
+
+           if (state.appUser) {
+              startLogoutTimer();
+              fetchActiveProfileData();
+           }
         }
         updateUI();
       });
     }
 
-    // --- Modal Logic ---
+    // --- Modal Toggles ---
     function showModal(id) {
       const modal = document.getElementById(id);
       const content = document.getElementById(`${id}-content`);
@@ -1162,7 +1127,44 @@
       setTimeout(() => modal.classList.add('hidden'), 300); 
     }
 
-    // --- Event Listeners ---
+    function openSettingsModal() {
+      document.getElementById('input-start-bal').value = state.config.startingBalance || 0;
+      document.getElementById('input-withdrawals').value = state.config.withdrawals || 0;
+      showModal('modal-settings');
+    }
+
+    function openDayModal(dateStr) {
+      state.selectedDateStr = dateStr;
+      const entry = state.pnlEntries.find(e => e.id === dateStr) || { pnl: '', isHoliday: false };
+      
+      const dateObj = new Date(dateStr);
+      document.getElementById('modal-day-title').innerHTML = `<i data-lucide="calendar" class="w-5 h-5 text-cyan-500"></i> ${dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+      lucide.createIcons();
+
+      const chkHoliday = document.getElementById('input-holiday');
+      const inputPnl = document.getElementById('input-pnl');
+      const pnlContainer = document.getElementById('pnl-input-container');
+      const btnDelete = document.getElementById('btn-delete-day');
+
+      chkHoliday.checked = entry.isHoliday;
+      inputPnl.value = entry.pnl !== undefined && entry.pnl !== null ? entry.pnl : '';
+      
+      if(entry.isHoliday) {
+        pnlContainer.classList.add('hidden');
+      } else {
+        pnlContainer.classList.remove('hidden');
+      }
+
+      if (entry.pnl !== undefined || entry.isHoliday) {
+        btnDelete.classList.remove('hidden');
+      } else {
+        btnDelete.classList.add('hidden');
+      }
+
+      showModal('modal-day');
+    }
+
+    // --- Core Interactions ---
     document.getElementById('toggle-password').addEventListener('click', () => {
       const pwdInput = document.getElementById('password');
       const eyeIcon = document.getElementById('eye-icon');
@@ -1176,161 +1178,52 @@
       lucide.createIcons();
     });
 
-    document.getElementById('login-form').addEventListener('submit', async (e) => {
+    document.getElementById('login-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const u = document.getElementById('username').value.trim();
       const p = document.getElementById('password').value.trim();
       const err = document.getElementById('login-error');
-      const btn = document.getElementById('btn-login-submit');
-      
-      err.classList.add('hidden');
+      const errText = document.getElementById('login-error-text');
       
       if (u === 'ShubhamMaster' && p === 'Shubham@Algo') {
         state.appUser = { role: 'master', username: 'Master' };
+        state.activeProfileId = 'master_data';
         localStorage.setItem(USER_KEY, JSON.stringify(state.appUser));
-        lastReset = 0; 
+        err.classList.add('hidden');
+        
         updateUI(); 
-        startLogoutTimer();
-        initFirebaseData(); 
-        return;
-      } 
-      
-      // Client verification against Firestore
-      btn.innerText = "Verifying...";
-      btn.disabled = true;
-      try {
-         const q = query(collection(db, 'profiles'), where('username', '==', u));
-         const querySnapshot = await getDocs(q);
-         
-         if (querySnapshot.empty) {
-            document.getElementById('login-error-text').innerText = "This profile doesn't exist. Please ask Admin for further assistance.";
-            err.classList.remove('hidden');
-         } else {
-            const userDoc = querySnapshot.docs[0];
-            const userData = userDoc.data();
-            
-            if (userData.password === p) {
-               state.appUser = { role: 'view', username: u, profileId: userDoc.id };
-               localStorage.setItem(USER_KEY, JSON.stringify(state.appUser));
-               lastReset = 0; 
-               updateUI(); 
-               startLogoutTimer();
-               initFirebaseData();
-            } else {
-               document.getElementById('login-error-text').innerText = "Invalid password. Please try again.";
-               err.classList.remove('hidden');
-            }
-         }
-      } catch (error) {
-         console.error(error);
-         document.getElementById('login-error-text').innerText = "Network error. Check connection.";
-         err.classList.remove('hidden');
+        startLogoutTimer(); // Master handles ignoring timer internally
+        fetchActiveProfileData(); 
+      } else {
+        const found = state.profiles.find(x => x.username.toLowerCase() === u.toLowerCase());
+        
+        if (!found) {
+           errText.innerText = "This profile doesn't exist. Please ask Admin for further assistance.";
+           err.classList.remove('hidden');
+        } else if (found.password !== p) {
+           errText.innerText = "Invalid password. Please try again.";
+           err.classList.remove('hidden');
+        } else {
+           state.appUser = { role: 'view', username: found.username, profileId: found.id };
+           state.activeProfileId = found.id;
+           localStorage.setItem(USER_KEY, JSON.stringify(state.appUser));
+           err.classList.add('hidden');
+           
+           lastReset = 0; 
+           updateUI();
+           startLogoutTimer(); // Timer explicitly activates for view user
+           fetchActiveProfileData();
+        }
       }
-      btn.innerText = "Secure Sign In";
-      btn.disabled = false;
     });
 
     document.getElementById('btn-logout').addEventListener('click', handleLogout);
 
-    document.getElementById('nav-profile-switcher').addEventListener('change', (e) => {
-       if (e.target.value !== state.activeProfileId) {
-          state.activeProfileId = e.target.value;
-          const prof = state.profiles.find(p => p.id === state.activeProfileId);
-          if(prof) {
-             state.config = { startingBalance: prof.startingBalance || 0, withdrawals: prof.withdrawals || 0 };
-          }
-          loadProfilePnL(state.activeProfileId);
-          updateUI();
-       }
+    document.getElementById('profile-switcher').addEventListener('change', (e) => {
+      state.activeProfileId = e.target.value;
+      fetchActiveProfileData();
     });
 
-    // Profile Management (Master)
-    document.getElementById('btn-manage-profiles').addEventListener('click', () => {
-       renderProfilesModal();
-       showModal('modal-manage-profiles');
-    });
-    document.getElementById('btn-close-manage-profiles').addEventListener('click', () => hideModal('modal-manage-profiles'));
-
-    document.getElementById('btn-add-profile').addEventListener('click', async () => {
-       const u = document.getElementById('new-prof-u').value.trim();
-       const p = document.getElementById('new-prof-p').value.trim();
-       if(!u || !p) { alert("Please enter both username and password."); return; }
-       
-       // Prevent duplicate username
-       const existing = state.profiles.find(prof => prof.username.toLowerCase() === u.toLowerCase());
-       if(existing) { alert("Username already exists."); return; }
-
-       const btn = document.getElementById('btn-add-profile');
-       btn.innerText = "...";
-       btn.disabled = true;
-
-       try {
-          await addDoc(collection(db, 'profiles'), {
-             username: u,
-             password: p,
-             startingBalance: 100000,
-             withdrawals: 0
-          });
-          document.getElementById('new-prof-u').value = '';
-          document.getElementById('new-prof-p').value = '';
-       } catch (error) {
-          console.error(error);
-          alert("Failed to create profile.");
-       }
-       btn.innerText = "Create";
-       btn.disabled = false;
-    });
-
-    // Event Delegation for Profile Edits/Deletes
-    document.getElementById('profiles-list').addEventListener('click', async (e) => {
-       const btnSave = e.target.closest('.btn-save-prof');
-       const btnDel = e.target.closest('.btn-del-prof');
-
-       if (btnSave) {
-          const id = btnSave.getAttribute('data-id');
-          const parent = btnSave.parentElement.parentElement;
-          const u = parent.querySelector('.prof-edit-u').value.trim();
-          const p = parent.querySelector('.prof-edit-p').value.trim();
-          
-          if(!u || !p) { alert("Username and password cannot be empty."); return; }
-          
-          const icon = btnSave.innerHTML;
-          btnSave.innerHTML = `<span class="animate-pulse">...</span>`;
-          btnSave.disabled = true;
-          
-          try {
-             await updateDoc(doc(db, 'profiles', id), { username: u, password: p });
-          } catch(err) {
-             console.error(err);
-             alert("Failed to update profile");
-          }
-          btnSave.innerHTML = icon;
-          btnSave.disabled = false;
-       }
-
-       if (btnDel) {
-          const id = btnDel.getAttribute('data-id');
-          if(!window.confirm("Are you sure you want to permanently delete this profile?")) return;
-          
-          const icon = btnDel.innerHTML;
-          btnDel.innerHTML = `<span class="animate-pulse">...</span>`;
-          btnDel.disabled = true;
-          
-          try {
-             await deleteDoc(doc(db, 'profiles', id));
-             // Note: Firestore doesn't automatically delete subcollections (pnl_entries), 
-             // but deleting the parent document immediately hides it from our system.
-          } catch(err) {
-             console.error(err);
-             alert("Failed to delete profile");
-             btnDel.innerHTML = icon;
-             btnDel.disabled = false;
-          }
-       }
-    });
-
-
-    // Tabs
     document.getElementById('tab-dashboard').addEventListener('click', () => { 
        state.activeTab = 'dashboard'; 
        sessionStorage.setItem(TAB_KEY, 'dashboard');
@@ -1346,17 +1239,13 @@
     document.getElementById('cal-prev').addEventListener('click', () => { state.calendarYear--; renderCalendar(); });
     document.getElementById('cal-next').addEventListener('click', () => { state.calendarYear++; renderCalendar(); });
 
-    // Settings Modal
-    document.getElementById('btn-settings').addEventListener('click', () => {
-       document.getElementById('input-start-bal').value = state.config.startingBalance || 0;
-       document.getElementById('input-withdrawals').value = state.config.withdrawals || 0;
-       showModal('modal-settings');
-    });
+    // Modals Handlers
+    document.getElementById('btn-settings').addEventListener('click', openSettingsModal);
     document.getElementById('btn-close-settings').addEventListener('click', () => hideModal('modal-settings'));
     document.getElementById('btn-cancel-settings').addEventListener('click', () => hideModal('modal-settings'));
     
     document.getElementById('btn-save-settings').addEventListener('click', () => {
-      if(!state.firebaseUser || !state.activeProfileId) return;
+      if(!state.firebaseUser) return;
       const startBal = Number(document.getElementById('input-start-bal').value);
       const withdrawals = Number(document.getElementById('input-withdrawals').value);
 
@@ -1364,10 +1253,30 @@
       updateUI();
       hideModal('modal-settings');
 
-      setDoc(doc(db, 'profiles', state.activeProfileId), { startingBalance: startBal, withdrawals: withdrawals }, { merge: true }).catch(console.error);
+      setDoc(getConfigRef(), { startingBalance: startBal, withdrawals: withdrawals }, { merge: true }).catch(err => {
+        console.error("Save failed:", err);
+      });
     });
 
-    // Day Modal
+    document.getElementById('btn-manage-profiles').addEventListener('click', () => showModal('modal-profiles'));
+    document.getElementById('btn-close-profiles').addEventListener('click', () => hideModal('modal-profiles'));
+    
+    document.getElementById('btn-add-profile').addEventListener('click', () => {
+        const u = document.getElementById('new-profile-username').value.trim();
+        const p = document.getElementById('new-profile-password').value.trim();
+        if(!u || !p) return alert('Enter both username and password.');
+        
+        if (state.profiles.some(x => x.username.toLowerCase() === u.toLowerCase()) || u.toLowerCase() === 'shubhammaster') {
+            return alert('This username already exists.');
+        }
+
+        const newRef = doc(collection(db, 'profiles'));
+        setDoc(newRef, { username: u, password: p }).then(() => {
+           document.getElementById('new-profile-username').value = '';
+           document.getElementById('new-profile-password').value = '';
+        }).catch(console.error);
+    });
+
     document.getElementById('btn-close-day').addEventListener('click', () => hideModal('modal-day'));
     document.getElementById('btn-cancel-day').addEventListener('click', () => hideModal('modal-day'));
     
@@ -1382,7 +1291,7 @@
     });
 
     document.getElementById('btn-save-day').addEventListener('click', () => {
-      if(!state.firebaseUser || !state.selectedDateStr || !state.activeProfileId) return;
+      if(!state.firebaseUser || !state.selectedDateStr) return;
       
       const isHoliday = document.getElementById('input-holiday').checked;
       const pnlVal = document.getElementById('input-pnl').value;
@@ -1400,7 +1309,7 @@
       updateUI();
       hideModal('modal-day');
 
-      const docRef = doc(db, 'profiles', state.activeProfileId, 'pnl_entries', state.selectedDateStr);
+      const docRef = getPnlDocRef(state.selectedDateStr);
       if (pnlVal === '' && !isHoliday) {
         deleteDoc(docRef).catch(console.error);
       } else {
@@ -1409,7 +1318,7 @@
     });
 
     document.getElementById('btn-delete-day').addEventListener('click', () => {
-      if(!state.firebaseUser || !state.selectedDateStr || !state.activeProfileId) return;
+      if(!state.firebaseUser || !state.selectedDateStr) return;
       if (!window.confirm("Remove data for this day?")) return;
       
       const existingIdx = state.pnlEntries.findIndex(x => x.id === state.selectedDateStr);
@@ -1418,7 +1327,7 @@
       updateUI();
       hideModal('modal-day');
 
-      const docRef = doc(db, 'profiles', state.activeProfileId, 'pnl_entries', state.selectedDateStr);
+      const docRef = getPnlDocRef(state.selectedDateStr);
       deleteDoc(docRef).catch(console.error);
     });
 
