@@ -1,6 +1,0 @@
-{
-  "name": "Shubham's Algo",
-  "description": "Professional algorithmic trading performance analytics, multi-profile portfolio tracker, and interactive PnL calendar.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
